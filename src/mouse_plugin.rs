@@ -14,10 +14,15 @@ impl Draggable {
     pub fn apply(&self, transform: &mut Transform) {
         if let Some((_, delta)) = self.last_position {
             let right = transform.rotation * Vec3::X;
-            let up = transform.rotation * Vec3::Y;
 
-            transform.translation -= right * delta.x * 0.01;
-            transform.translation += up * delta.y * 0.01;
+            // Forward direction with Y zeroed out to stay on grid
+            let mut forward = transform.rotation * Vec3::Z;
+            forward.y = 0.0;
+            forward = forward.normalize_or_zero();
+
+            // Pan the camera on the XZ plane
+            transform.translation -= right * delta.x * 0.025;
+            transform.translation -= forward * delta.y * 0.025;
         }
     }
 }

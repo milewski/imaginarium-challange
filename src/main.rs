@@ -1,18 +1,43 @@
 mod mouse_plugin;
+mod player;
 
 use crate::mouse_plugin::{Draggable, MousePlugin};
-use bevy::color::palettes::tailwind::{GRAY_50, GRAY_100, GRAY_200};
+use crate::player::{Player, PlayerPlugin};
+use bevy::color::palettes::tailwind::{GRAY_100, GRAY_200};
 use bevy::prelude::*;
 use bevy::render::camera::ScalingMode;
 use bevy_infinite_grid::{InfiniteGridBundle, InfiniteGridPlugin, InfiniteGridSettings};
+use bevy_sprite3d::{Sprite3dBuilder, Sprite3dParams, Sprite3dPlugin};
+
+#[derive(Resource, Default)]
+struct AssetsCache(Handle<Image>);
+
+#[derive(States, Hash, Clone, PartialEq, Eq, Debug, Default)]
+enum GameState {
+    #[default]
+    Loading,
+    Ready,
+}
 
 fn main() {
     App::new()
         .add_plugins((DefaultPlugins, InfiniteGridPlugin))
         .add_plugins(CameraController)
+        .add_plugins(PlayerPlugin)
+        .add_plugins(Sprite3dPlugin)
+        // .add_plugins(PanOrbitCameraPlugin)
         .insert_resource(ClearColor(Color::WHITE))
+        .init_state::<GameState>()
         .add_systems(Startup, setup_system)
-        .add_systems(Update, player_system)
+        .add_systems(Startup, sprite_system)
+        .insert_resource(AssetsCache::default())
+        .add_systems(
+            Startup,
+            |asset_server: Res<AssetServer>, mut assets: ResMut<AssetsCache>| {
+                assets.0 = asset_server.load("funny-guy.png");
+            },
+        )
+        .add_systems(Update, sprite_system.run_if(in_state(GameState::Loading)))
         .run();
 }
 
@@ -26,37 +51,6 @@ impl Plugin for CameraController {
     }
 }
 
-fn player_system(
-    mut query: Query<(&mut Transform, &mut Player)>,
-    mouse: Res<ButtonInput<MouseButton>>,
-    windows: Query<&Window>,
-    camera_query: Query<(&Camera, &GlobalTransform), With<Projection>>,
-)
-{
-    if !mouse.just_pressed(MouseButton::Left) {
-        return;
-    }
-
-    let (camera, camera_transform) = camera_query.single();
-    let window = windows.single();
-
-    if let Some(cursor_pos) = window.cursor_position() {
-        if let Ok(ray) = camera.viewport_to_world(camera_transform, cursor_pos) {
-            let plane_origin = Vec3::ZERO;
-            let plane = InfinitePlane3d::new(Vec3::Y);
-
-            if let Some(distance) = ray.intersect_plane(plane_origin, plane) {
-                let intersection_point = ray.origin + ray.direction * distance;
-
-                if let Ok((mut transform, _player)) = query.get_single_mut() {
-                    transform.translation.x = intersection_point.x;
-                    transform.translation.z = intersection_point.z;
-                }
-            }
-        }
-    }
-}
-
 fn camera_controller(
     keyboard: Res<ButtonInput<KeyCode>>,
     draggable: Res<Draggable>,
@@ -64,34 +58,49 @@ fn camera_controller(
 ) {
     if let Ok((mut transform, mut state)) = query.get_single_mut() {
         draggable.apply(&mut transform);
-
-        if keyboard.pressed(KeyCode::ArrowUp) {
-            transform.translation.y += 0.1;
-        }
-
-        if keyboard.pressed(KeyCode::ArrowDown) {
-            transform.translation.y -= 0.1;
-        }
-
-        if keyboard.pressed(KeyCode::ArrowLeft) {
-            transform.translation.z += 0.1;
-            transform.translation.x -= 0.1;
-        }
-
-        if keyboard.pressed(KeyCode::ArrowRight) {
-            transform.translation.z -= 0.1;
-            transform.translation.x += 0.1;
-        }
     }
 }
 
-#[derive(Component, Default, Debug)]
-struct Player;
+fn sprite_system(
+    asset_server: Res<AssetServer>,
+    mut commands: Commands,
+    mut sprite_params: Sprite3dParams,
+    assets: Res<AssetsCache>,
+    mut next_state: ResMut<NextState<GameState>>,
+) {
+    if !asset_server
+        .get_load_state(assets.0.id())
+        .is_some_and(|s| s.is_loaded())
+    {
+        return;
+    }
+
+    next_state.set(GameState::Ready);
+
+    commands.spawn((
+        Sprite3dBuilder {
+            image: assets.0.clone(),
+            pixels_per_metre: 100.,
+            alpha_mode: AlphaMode::Blend,
+            unlit: true,
+            pivot: Some(Vec2::new(0.5, 0.0)),
+            ..default()
+        }
+        .bundle(&mut sprite_params),
+        Transform {
+            translation: Vec3::new(0.0, 0.0, 0.0),
+            rotation: Quat::from_rotation_y(45f32.to_radians()),
+            ..default()
+        },
+    ));
+}
 
 fn setup_system(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
+    mut windows: Query<&mut Window>,
+    asset_server: Res<AssetServer>,
 ) {
     commands.spawn(InfiniteGridBundle {
         settings: InfiniteGridSettings {
@@ -104,12 +113,18 @@ fn setup_system(
         ..default()
     });
 
+    // commands.spawn((
+    //     Transform::from_translation(Vec3::new(0.0, 1.5, 5.0)),
+    //     PanOrbitCamera::default(),
+    // ));
+
     commands.spawn((
         Camera3d::default(),
         Projection::from(OrthographicProjection {
             scaling_mode: ScalingMode::FixedVertical {
                 viewport_height: 12.0,
             },
+            near: -10.0,
             ..OrthographicProjection::default_3d()
         }),
         Transform::from_xyz(5.0, 5.0, 5.0).looking_at(Vec3::ZERO, Vec3::Y),
@@ -126,8 +141,14 @@ fn setup_system(
         Mesh3d(meshes.add(Cuboid::default())),
         MeshMaterial3d(materials.add(Color::srgb(0.8, 0.7, 0.6))),
         Transform::from_xyz(1.5, 0.5, -1.5),
-        Player::default()
+        Player::default(),
     ));
 
-    commands.spawn((PointLight::default(), Transform::from_xyz(3.0, 8.0, 5.0)));
+    commands.spawn((
+        DirectionalLight {
+            illuminance: 10000.0,
+            ..default()
+        },
+        Transform::from_xyz(3.0, 8.0, 5.0).looking_at(Vec3::ZERO, Vec3::Y),
+    ));
 }
