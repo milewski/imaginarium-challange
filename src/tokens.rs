@@ -4,11 +4,9 @@ use bevy::hierarchy::ChildBuild;
 use bevy::image::Image;
 use bevy::log::info;
 use bevy::math::{Quat, Vec2, Vec3};
-use bevy::prelude::{
-    AlphaMode, Commands, Component, IntoSystemConfigs, Local, Plugin, Query, Res, Resource,
-    Transform, With, default, resource_exists,
-};
+use bevy::prelude::{AlphaMode, Commands, Component, IntoSystemConfigs, Local, Plugin, Query, Res, Resource, Transform, With, default, resource_exists, Entity};
 use bevy_sprite3d::{Sprite3d, Sprite3dBuilder, Sprite3dParams};
+use crate::player::Player;
 
 pub struct TokensPlugin;
 
@@ -24,7 +22,7 @@ impl Plugin for TokensPlugin {
 struct TokenHandle(Handle<Image>);
 
 #[derive(Component)]
-struct Token;
+pub struct Token;
 
 fn load_token(mut commands: Commands, asset_server: Res<AssetServer>) {
     commands.insert_resource(TokenHandle(asset_server.load("giraffe.png")));
@@ -58,12 +56,29 @@ fn setup(
 }
 
 fn pickup_token_system(
-    query: Query<(&Sprite3d, &Transform), With<Token>>, // Querying entities with `Token` component
+    mut commands: Commands,
+    query: Query<(Entity, &Sprite3d, &Transform), With<Token>>, // All tokens
+    player_query: Query<(&Player, &Transform)>,
 ) {
-    for (sprite, transform) in query.iter() {
-        // Process each token (for example, detect pickup based on position)
-        // info!("Token at position: {:?}", transform.translation);
-        // Add your token pickup logic here
+    // Get player position
+    let player_transform = player_query.single().1; // Assuming there's only one player
+
+    for (token_entity, sprite, token_transform) in query.iter() {
+        // Calculate distance between player and token
+        let distance = player_transform.translation.distance(token_transform.translation);
+
+        // Set a pickup radius (e.g., 1.0 units)
+        let pickup_radius = 2.0;
+
+        if distance < pickup_radius {
+            // Player has crossed the token's position, so pick it up
+            println!("Token picked up at: {:?}", token_transform.translation);
+
+            // Remove token from the world (or mark as picked up)
+            commands.entity(token_entity).despawn(); // Or use .despawn_recursive() if you need to clear children too
+
+            // Optionally, update the player’s score or inventory here
+        }
     }
 }
 

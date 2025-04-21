@@ -5,14 +5,12 @@ use bevy::gltf::GltfAssetLabel;
 use bevy::input::ButtonInput;
 use bevy::log::info;
 use bevy::math::{Quat, Vec2, Vec3};
-use bevy::prelude::{
-    AnimationNodeIndex, Camera, Component, GlobalTransform, InfinitePlane3d, MouseButton,
-    Projection, Query, Res, Time, Transform, Window, With,
-};
+use bevy::prelude::{AnimationNodeIndex, Camera, Component, GlobalTransform, InfinitePlane3d, MouseButton, Projection, Query, Res, Time, Transform, Window, With, Without};
 use bevy_rapier2d::prelude::Collider;
 use bevy_sprite3d::{Sprite3d, Sprite3dBuilder, Sprite3dBundle};
 use std::time::Duration;
 use bevy_rapier2d::rapier::math::Point;
+use crate::tokens::Token;
 
 #[derive(Default, Debug, Clone, Copy, PartialEq)]
 pub enum PlayerAnimation {
@@ -108,7 +106,7 @@ fn is_blocked(start: &Vec3, end: &Vec3, elements: &Vec<&Vec3>) -> Vec3 {
 
 fn player_system(
     mut query: Query<(&mut Player, &Transform)>,
-    mut bundle_query: Query<(&mut Sprite3d, &Transform)>,
+    mut bundle_query: Query<(&mut Sprite3d, &Transform), Without<Token>>,
     mouse: Res<ButtonInput<MouseButton>>,
     windows: Query<&Window>,
     camera_query: Query<(&Camera, &GlobalTransform), With<Projection>>,
