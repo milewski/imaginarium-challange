@@ -2,6 +2,7 @@
 
 use std::{f32::consts::PI, time::Duration};
 
+use crate::player::{Player, PlayerAnimation};
 use bevy::{
     animation::{AnimationTargetId, RepeatAnimation},
     color::palettes::css::WHITE,
@@ -9,16 +10,18 @@ use bevy::{
     prelude::*,
 };
 
-const FOX_PATH: &str = "Fox.glb";
+const FOX_PATH: &str = "RobotExpressive.glb";
 
 pub struct FoxPlugin;
 
 impl Plugin for FoxPlugin {
     fn build(&self, app: &mut App) {
-        app.init_resource::<FoxFeetTargets>()
-            .add_systems(Startup, setup)
+        app.add_systems(Startup, setup)
             .add_systems(Update, setup_scene_once_loaded)
-            .add_systems(Update, (keyboard_animation_control));
+            .add_systems(
+                Update,
+                (keyboard_animation_control, switch_player_animation),
+            );
         // .add_observer(observe_on_step);
     }
 }
@@ -65,6 +68,17 @@ fn setup(
 ) {
     // Build the animation graph
     let (graph, node_indices) = AnimationGraph::from_clips([
+        asset_server.load(GltfAssetLabel::Animation(13).from_asset(FOX_PATH)), // yes
+        asset_server.load(GltfAssetLabel::Animation(12).from_asset(FOX_PATH)), // hi
+        asset_server.load(GltfAssetLabel::Animation(11).from_asset(FOX_PATH)), // hop
+        asset_server.load(GltfAssetLabel::Animation(10).from_asset(FOX_PATH)), // walk
+        asset_server.load(GltfAssetLabel::Animation(9).from_asset(FOX_PATH)),  // like
+        asset_server.load(GltfAssetLabel::Animation(8).from_asset(FOX_PATH)),
+        asset_server.load(GltfAssetLabel::Animation(7).from_asset(FOX_PATH)),
+        asset_server.load(GltfAssetLabel::Animation(6).from_asset(FOX_PATH)), // running
+        asset_server.load(GltfAssetLabel::Animation(5).from_asset(FOX_PATH)),
+        asset_server.load(GltfAssetLabel::Animation(4).from_asset(FOX_PATH)),
+        asset_server.load(GltfAssetLabel::Animation(3).from_asset(FOX_PATH)),
         asset_server.load(GltfAssetLabel::Animation(2).from_asset(FOX_PATH)),
         asset_server.load(GltfAssetLabel::Animation(1).from_asset(FOX_PATH)),
         asset_server.load(GltfAssetLabel::Animation(0).from_asset(FOX_PATH)),
@@ -81,9 +95,10 @@ fn setup(
     commands.spawn((
         SceneRoot(asset_server.load(GltfAssetLabel::Scene(0).from_asset(FOX_PATH))),
         Transform {
-            scale: Vec3::splat(0.05),
+            scale: Vec3::splat(0.5),
             ..default()
         },
+        Player::default(),
     ));
 
     println!("Animation controls:");
@@ -100,7 +115,6 @@ fn setup(
 fn setup_scene_once_loaded(
     mut commands: Commands,
     animations: Res<Animations>,
-    feet: Res<FoxFeetTargets>,
     graphs: Res<Assets<AnimationGraph>>,
     mut clips: ResMut<Assets<AnimationClip>>,
     mut players: Query<(Entity, &mut AnimationPlayer), Added<AnimationPlayer>>,
@@ -119,18 +133,6 @@ fn setup_scene_once_loaded(
     }
 
     for (entity, mut player) in &mut players {
-        let graph = graphs.get(&animations.graph).unwrap();
-
-        // Send `OnStep` events once the fox feet hits the ground in the running animation.
-        let running_animation = get_clip(animations.animations[0], graph, &mut clips);
-        // You can determine the time an event should trigger if you know witch frame it occurs and
-        // the frame rate of the animation. Let's say we want to trigger an event at frame 15,
-        // and the animation has a frame rate of 24 fps, then time = 15 / 24 = 0.625.
-        running_animation.add_event_to_target(feet.front_left, 0.625, OnStep);
-        running_animation.add_event_to_target(feet.front_right, 0.5, OnStep);
-        running_animation.add_event_to_target(feet.back_left, 0.0, OnStep);
-        running_animation.add_event_to_target(feet.back_right, 0.125, OnStep);
-
         let mut transitions = AnimationTransitions::new();
 
         // Make sure to start the animation via the `AnimationTransitions`
@@ -145,6 +147,30 @@ fn setup_scene_once_loaded(
             .entity(entity)
             .insert(AnimationGraphHandle(animations.graph.clone()))
             .insert(transitions);
+    }
+}
+
+fn switch_player_animation(
+    mut animation_players: Query<(&mut AnimationPlayer, &mut AnimationTransitions)>,
+    mut query: Query<(&mut Player)>,
+    mut previous_animation: Local<PlayerAnimation>,
+) {
+    let player = query.single();
+
+    if player.current_animation == *previous_animation {
+        return;
+    }
+
+    for (mut animation_player, mut transitions) in &mut animation_players {
+        let (index, duration) = player.current_animation.to_animation();
+
+
+
+        transitions
+            .play(&mut animation_player, index, duration)
+            .repeat();
+
+        *previous_animation = player.current_animation.clone()
     }
 }
 
@@ -198,10 +224,19 @@ fn keyboard_animation_control(
             transitions
                 .play(
                     &mut player,
-                    animations.animations[*current_animation],
-                    Duration::from_millis(250),
-                )
-                .repeat();
+                    3.into(),
+                    Duration::from_millis(0),
+                );
+
+            info!("Animation INDEX: {:?}", animations.animations[*current_animation]);
+
+            // transitions
+            //     .play(
+            //         &mut player,
+            //         animations.animations[*current_animation],
+            //         Duration::from_millis(250),
+            //     )
+            //     .repeat();
         }
 
         if keyboard_input.just_pressed(KeyCode::Digit1) {
@@ -228,65 +263,6 @@ fn keyboard_animation_control(
         if keyboard_input.just_pressed(KeyCode::KeyL) {
             let playing_animation = player.animation_mut(playing_animation_index).unwrap();
             playing_animation.set_repeat(RepeatAnimation::Forever);
-        }
-    }
-}
-
-#[derive(Resource)]
-struct FoxFeetTargets {
-    front_right: AnimationTargetId,
-    front_left: AnimationTargetId,
-    back_left: AnimationTargetId,
-    back_right: AnimationTargetId,
-}
-
-impl Default for FoxFeetTargets {
-    fn default() -> Self {
-        // Get the id's of the feet and store them in a resource.
-        let hip_node = ["root", "_rootJoint", "b_Root_00", "b_Hip_01"];
-        let front_left_foot = hip_node.iter().chain(
-            [
-                "b_Spine01_02",
-                "b_Spine02_03",
-                "b_LeftUpperArm_09",
-                "b_LeftForeArm_010",
-                "b_LeftHand_011",
-            ]
-            .iter(),
-        );
-        let front_right_foot = hip_node.iter().chain(
-            [
-                "b_Spine01_02",
-                "b_Spine02_03",
-                "b_RightUpperArm_06",
-                "b_RightForeArm_07",
-                "b_RightHand_08",
-            ]
-            .iter(),
-        );
-        let back_left_foot = hip_node.iter().chain(
-            [
-                "b_LeftLeg01_015",
-                "b_LeftLeg02_016",
-                "b_LeftFoot01_017",
-                "b_LeftFoot02_018",
-            ]
-            .iter(),
-        );
-        let back_right_foot = hip_node.iter().chain(
-            [
-                "b_RightLeg01_019",
-                "b_RightLeg02_020",
-                "b_RightFoot01_021",
-                "b_RightFoot02_022",
-            ]
-            .iter(),
-        );
-        Self {
-            front_left: AnimationTargetId::from_iter(front_left_foot),
-            front_right: AnimationTargetId::from_iter(front_right_foot),
-            back_left: AnimationTargetId::from_iter(back_left_foot),
-            back_right: AnimationTargetId::from_iter(back_right_foot),
         }
     }
 }
