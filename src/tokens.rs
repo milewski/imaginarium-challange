@@ -2,24 +2,32 @@ use bevy::app::{App, Startup, Update};
 use bevy::asset::{AssetServer, Handle};
 use bevy::hierarchy::ChildBuild;
 use bevy::image::Image;
+use bevy::log::info;
 use bevy::math::{Quat, Vec2, Vec3};
-use bevy::prelude::{AlphaMode, Commands, IntoSystemConfigs, Plugin, Res, Resource, Transform, default, resource_exists, Local};
-use bevy_sprite3d::{Sprite3dBuilder, Sprite3dParams};
+use bevy::prelude::{
+    AlphaMode, Commands, Component, IntoSystemConfigs, Local, Plugin, Query, Res, Resource,
+    Transform, With, default, resource_exists,
+};
+use bevy_sprite3d::{Sprite3d, Sprite3dBuilder, Sprite3dParams};
 
 pub struct TokensPlugin;
-
-#[derive(Resource)]
-struct TokenHandle(Handle<Image>);
-
-fn load_token(mut commands: Commands, asset_server: Res<AssetServer>) {
-    commands.insert_resource(TokenHandle(asset_server.load("giraffe.png")));
-}
 
 impl Plugin for TokensPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(Startup, load_token);
         app.add_systems(Update, setup.run_if(resource_exists::<TokenHandle>));
+        app.add_systems(Update, pickup_token_system);
     }
+}
+
+#[derive(Resource)]
+struct TokenHandle(Handle<Image>);
+
+#[derive(Component)]
+struct Token;
+
+fn load_token(mut commands: Commands, asset_server: Res<AssetServer>) {
+    commands.insert_resource(TokenHandle(asset_server.load("giraffe.png")));
 }
 
 fn setup(
@@ -27,10 +35,10 @@ fn setup(
     asset_server: Res<AssetServer>,
     token_handle: Res<TokenHandle>,
     mut sprite_params: Sprite3dParams,
-    mut run: Local<bool>
+    mut run: Local<bool>,
 ) {
     if *run {
-        return
+        return;
     }
 
     if asset_server.is_loaded(&token_handle.0) {
@@ -49,6 +57,16 @@ fn setup(
     }
 }
 
+fn pickup_token_system(
+    query: Query<(&Sprite3d, &Transform), With<Token>>, // Querying entities with `Token` component
+) {
+    for (sprite, transform) in query.iter() {
+        // Process each token (for example, detect pickup based on position)
+        // info!("Token at position: {:?}", transform.translation);
+        // Add your token pickup logic here
+    }
+}
+
 fn create_token(
     commands: &mut Commands,
     sprite_params: &mut Sprite3dParams,
@@ -56,6 +74,7 @@ fn create_token(
     position: Vec3,
 ) {
     commands.spawn((
+        Token,
         Sprite3dBuilder {
             image: token_handle.0.clone(),
             pixels_per_metre: 100.,
@@ -110,7 +129,9 @@ fn spawn_tokens_around_center(
             break;
         }
 
-        let too_close = placed.iter().any(|existing| candidate.distance(*existing) < min_distance_between);
+        let too_close = placed
+            .iter()
+            .any(|existing| candidate.distance(*existing) < min_distance_between);
 
         if !too_close {
             let world_pos = iso_to_world(candidate);
