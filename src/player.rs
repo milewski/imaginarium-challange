@@ -1,4 +1,7 @@
+use crate::fox_plugin::FOX_PATH;
 use bevy::app::{App, Plugin, Update};
+use bevy::asset::AssetPath;
+use bevy::gltf::GltfAssetLabel;
 use bevy::input::ButtonInput;
 use bevy::log::info;
 use bevy::math::{Quat, Vec2, Vec3};
@@ -9,23 +12,36 @@ use bevy::prelude::{
 use bevy_rapier2d::prelude::Collider;
 use bevy_sprite3d::{Sprite3d, Sprite3dBuilder, Sprite3dBundle};
 use std::time::Duration;
+use bevy_rapier2d::rapier::math::Point;
 
-#[derive(Default, Debug, Clone, PartialEq)]
+#[derive(Default, Debug, Clone, Copy, PartialEq)]
 pub enum PlayerAnimation {
     #[default]
-    Idle,
-    Running,
-    Walking,
-    Jumping,
+    Idle = 2,
+    Jumping = 3,
+    Running = 6,
+    Standing = 8,
+    Walking = 10,
 }
 
 impl PlayerAnimation {
-    pub fn to_animation(&self) -> (AnimationNodeIndex, Duration) {
+    pub fn clips() -> [AssetPath<'static>; 5] {
+        [
+            GltfAssetLabel::Animation(Self::Idle as usize).from_asset(FOX_PATH),
+            GltfAssetLabel::Animation(Self::Jumping as usize).from_asset(FOX_PATH),
+            GltfAssetLabel::Animation(Self::Running as usize).from_asset(FOX_PATH),
+            GltfAssetLabel::Animation(Self::Walking as usize).from_asset(FOX_PATH),
+            GltfAssetLabel::Animation(Self::Standing as usize).from_asset(FOX_PATH),
+        ]
+    }
+
+    pub fn to_animation(&self) -> AnimationNodeIndex {
         match self {
-            PlayerAnimation::Idle => (12.into(), Duration::from_millis(250)),
-            PlayerAnimation::Running => (8.into(), Duration::from_millis(250)),
-            PlayerAnimation::Walking => (4.into(), Duration::from_millis(250)),
-            PlayerAnimation::Jumping => (11.into(), Duration::from_millis(250)),
+            PlayerAnimation::Idle => 1.into(),
+            PlayerAnimation::Jumping => 2.into(),
+            PlayerAnimation::Running => 3.into(),
+            PlayerAnimation::Walking => 4.into(),
+            PlayerAnimation::Standing => 5.into(),
         }
     }
 }
@@ -33,6 +49,7 @@ impl PlayerAnimation {
 #[derive(Component, Default, Debug)]
 pub struct Player {
     pub current_animation: PlayerAnimation,
+    pub current_position: (f32, f32),
     path: Option<(Vec3, Quat)>,
 }
 
@@ -53,7 +70,7 @@ fn distance_to_segment(p: Vec3, a: Vec3, b: Vec3) -> f32 {
     p.distance(closest_point)
 }
 
-fn is_blocked(start: &Vec3, end: &Vec3, elements: Vec<&Vec3>) -> Vec3 {
+fn is_blocked(start: &Vec3, end: &Vec3, elements: &Vec<&Vec3>) -> Vec3 {
     let radius = 1.0;
     let grid_size = 1.0;
     let mut blocked = false;
@@ -66,7 +83,7 @@ fn is_blocked(start: &Vec3, end: &Vec3, elements: Vec<&Vec3>) -> Vec3 {
 
         for index in 1..=steps {
             let step_point = start + direction * (index as f32 * grid_size);
-            let distance = step_point.distance(*obstacle);
+            let distance = step_point.distance(**obstacle);
 
             if distance <= radius {
                 blocked = true;
@@ -100,6 +117,10 @@ fn player_system(
         return;
     }
 
+    let Ok((mut player, player_transform)) = query.get_single_mut() else {
+        unreachable!()
+    };
+
     let (camera, camera_transform) = camera_query.single();
     let window = windows.single();
 
@@ -121,31 +142,35 @@ fn player_system(
                 intersection_point.x = (intersection_point.x / grid_size).round() * grid_size;
                 intersection_point.z = (intersection_point.z / grid_size).round() * grid_size;
 
-                if let Ok((mut player, transform)) = query.get_single_mut() {
-                    // Direction from player to target (XZ only)
-                    let mut direction = intersection_point - transform.translation;
-                    direction.y = 0.0; // Ignore Y to constrain rotation to XZ plane
+                // Direction from player to target (XZ only)
+                let mut direction = intersection_point - player_transform.translation;
+                direction.y = 0.0; // Ignore Y to constrain rotation to XZ plane
 
-                    let rotation = if direction.length_squared() > 0.0 {
-                        direction = direction.normalize();
+                let rotation = if direction.length_squared() > 0.0 {
+                    direction = direction.normalize();
 
-                        // Calculate angle between forward (Z+) and direction
-                        let angle = direction.x.atan2(direction.z);
+                    // Calculate angle between forward (Z+) and direction
+                    let angle = direction.x.atan2(direction.z);
 
-                        // Rotate player around Y axis
-                        Quat::from_rotation_y(angle)
-                    } else {
-                        transform.rotation
-                    };
+                    // Rotate player around Y axis
+                    Quat::from_rotation_y(angle)
+                } else {
+                    player_transform.rotation
+                };
 
-                    player.current_animation = PlayerAnimation::Running;
-                    player.path = Some((
-                        is_blocked(&transform.translation, &intersection_point, elements),
-                        rotation,
-                    ));
+                player.current_animation = PlayerAnimation::Running;
+                player.path = Some((
+                    is_blocked(&player_transform.translation, &intersection_point, &elements),
+                    rotation,
+                ));
 
-                    info!("target -> {:?}", intersection_point);
-                }
+                // for element in elements {
+                //     if element ==  &intersection_point{
+                //         println!("GOT ELEMENT {:?}", element);
+                //     }
+                // }
+
+                info!("target -> {:?}", intersection_point);
             }
         }
     }
@@ -163,6 +188,8 @@ fn player_movement_system(
             let current = transform.translation;
             let current_rotation = transform.rotation;
             let target = Vec3::new(target_pos.x, current.y, target_pos.z); // maintain current Y
+
+            player.current_position = (target.x, target.z);
 
             let direction = target - current;
             let distance = direction.length();
@@ -185,6 +212,7 @@ fn player_movement_system(
 
                 let t = (time.delta_secs() * 8.0).min(1.0);
                 transform.rotation = current_rotation.slerp(rotation, t);
+
             } else {
                 transform.translation = target;
                 transform.rotation = rotation;

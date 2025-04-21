@@ -1,6 +1,8 @@
 mod mouse_plugin;
 mod player;
 mod fox_plugin;
+mod button_plugin;
+mod tokens;
 
 use crate::mouse_plugin::{Draggable, MousePlugin};
 use crate::player::{Player, PlayerPlugin};
@@ -15,7 +17,9 @@ use bevy_sprite3d::{Sprite3dBuilder, Sprite3dParams, Sprite3dPlugin};
 use num_traits::{Float, FloatConst};
 use std::any::Any;
 use std::f32::consts::PI;
+use crate::button_plugin::ButtonPlugin;
 use crate::fox_plugin::FoxPlugin;
+use crate::tokens::TokensPlugin;
 
 #[derive(Resource, Default)]
 struct AssetsCache(Vec<Handle<Image>>);
@@ -32,6 +36,7 @@ fn main() {
         .add_plugins((DefaultPlugins, InfiniteGridPlugin))
         .add_plugins(CameraController)
         .add_plugins(PlayerPlugin)
+        .add_plugins((ButtonPlugin, TokensPlugin))
         .add_plugins(Sprite3dPlugin)
         .add_plugins(FoxPlugin)
         // .add_plugins(PanOrbitCameraPlugin)

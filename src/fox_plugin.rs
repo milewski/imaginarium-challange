@@ -10,7 +10,7 @@ use bevy::{
     prelude::*,
 };
 
-const FOX_PATH: &str = "RobotExpressive.glb";
+pub const FOX_PATH: &str = "RobotExpressive.glb";
 
 pub struct FoxPlugin;
 
@@ -18,10 +18,7 @@ impl Plugin for FoxPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(Startup, setup)
             .add_systems(Update, setup_scene_once_loaded)
-            .add_systems(
-                Update,
-                (keyboard_animation_control, switch_player_animation),
-            );
+            .add_systems(Update, switch_player_animation);
         // .add_observer(observe_on_step);
     }
 }
@@ -67,25 +64,12 @@ fn setup(
     mut graphs: ResMut<Assets<AnimationGraph>>,
 ) {
     // Build the animation graph
-    let (graph, node_indices) = AnimationGraph::from_clips([
-        asset_server.load(GltfAssetLabel::Animation(13).from_asset(FOX_PATH)), // yes
-        asset_server.load(GltfAssetLabel::Animation(12).from_asset(FOX_PATH)), // hi
-        asset_server.load(GltfAssetLabel::Animation(11).from_asset(FOX_PATH)), // hop
-        asset_server.load(GltfAssetLabel::Animation(10).from_asset(FOX_PATH)), // walk
-        asset_server.load(GltfAssetLabel::Animation(9).from_asset(FOX_PATH)),  // like
-        asset_server.load(GltfAssetLabel::Animation(8).from_asset(FOX_PATH)),
-        asset_server.load(GltfAssetLabel::Animation(7).from_asset(FOX_PATH)),
-        asset_server.load(GltfAssetLabel::Animation(6).from_asset(FOX_PATH)), // running
-        asset_server.load(GltfAssetLabel::Animation(5).from_asset(FOX_PATH)),
-        asset_server.load(GltfAssetLabel::Animation(4).from_asset(FOX_PATH)),
-        asset_server.load(GltfAssetLabel::Animation(3).from_asset(FOX_PATH)),
-        asset_server.load(GltfAssetLabel::Animation(2).from_asset(FOX_PATH)),
-        asset_server.load(GltfAssetLabel::Animation(1).from_asset(FOX_PATH)),
-        asset_server.load(GltfAssetLabel::Animation(0).from_asset(FOX_PATH)),
-    ]);
+    let (graph, node_indices) =
+        AnimationGraph::from_clips(PlayerAnimation::clips().map(|clip| asset_server.load(clip)));
 
     // Insert a resource with the current scene information
     let graph_handle = graphs.add(graph);
+
     commands.insert_resource(Animations {
         animations: node_indices,
         graph: graph_handle,
@@ -150,119 +134,160 @@ fn setup_scene_once_loaded(
     }
 }
 
+#[derive(Default, PartialEq)]
+enum Queue {
+    #[default]
+    None,
+    Next(PlayerAnimation),
+}
+
 fn switch_player_animation(
+    time: Res<Time>,
     mut animation_players: Query<(&mut AnimationPlayer, &mut AnimationTransitions)>,
     mut query: Query<(&mut Player)>,
     mut previous_animation: Local<PlayerAnimation>,
+    mut current_animation: Local<PlayerAnimation>,
+    mut queue: Local<Queue>,
+    mut delay_timer: Local<Option<Timer>>,
 ) {
     let player = query.single();
 
-    if player.current_animation == *previous_animation {
+    if player.current_animation == *previous_animation && *queue == Queue::None {
         return;
     }
 
     for (mut animation_player, mut transitions) in &mut animation_players {
-        let (index, duration) = player.current_animation.to_animation();
+        match *queue {
+            Queue::Next(animation) => {
+                if let Some(timer) = delay_timer.as_mut() {
+                    timer.tick(time.delta());
 
+                    if !timer.finished() {
+                        return;
+                    }
 
+                    *delay_timer = None;
+                }
 
-        transitions
-            .play(&mut animation_player, index, duration)
-            .repeat();
+                transitions
+                    .play(
+                        &mut animation_player,
+                        animation.to_animation(),
+                        Duration::from_millis(250),
+                    )
+                    .repeat();
 
-        *previous_animation = player.current_animation.clone()
-    }
-}
+                *previous_animation = current_animation.clone();
+                *queue = Queue::None;
+            }
+            Queue::None => {
+                *current_animation = player.current_animation.clone();
 
-fn keyboard_animation_control(
-    keyboard_input: Res<ButtonInput<KeyCode>>,
-    mut animation_players: Query<(&mut AnimationPlayer, &mut AnimationTransitions)>,
-    animations: Res<Animations>,
-    mut current_animation: Local<usize>,
-) {
-    for (mut player, mut transitions) in &mut animation_players {
-        let Some((&playing_animation_index, _)) = player.playing_animations().next() else {
-            continue;
-        };
+                if player.current_animation == PlayerAnimation::Idle {
+                    transitions.play(
+                        &mut animation_player,
+                        PlayerAnimation::Jumping.to_animation(),
+                        Duration::from_millis(250),
+                    );
 
-        if keyboard_input.just_pressed(KeyCode::Space) {
-            let playing_animation = player.animation_mut(playing_animation_index).unwrap();
-            if playing_animation.is_paused() {
-                playing_animation.resume();
-            } else {
-                playing_animation.pause();
+                    *delay_timer = Some(Timer::from_seconds(0.708, TimerMode::Once));
+                }
+
+                *queue = Queue::Next(player.current_animation);
             }
         }
-
-        if keyboard_input.just_pressed(KeyCode::ArrowUp) {
-            let playing_animation = player.animation_mut(playing_animation_index).unwrap();
-            let speed = playing_animation.speed();
-            playing_animation.set_speed(speed * 1.2);
-        }
-
-        if keyboard_input.just_pressed(KeyCode::ArrowDown) {
-            let playing_animation = player.animation_mut(playing_animation_index).unwrap();
-            let speed = playing_animation.speed();
-            playing_animation.set_speed(speed * 0.8);
-        }
-
-        if keyboard_input.just_pressed(KeyCode::ArrowLeft) {
-            let playing_animation = player.animation_mut(playing_animation_index).unwrap();
-            let elapsed = playing_animation.seek_time();
-            playing_animation.seek_to(elapsed - 0.1);
-        }
-
-        if keyboard_input.just_pressed(KeyCode::ArrowRight) {
-            let playing_animation = player.animation_mut(playing_animation_index).unwrap();
-            let elapsed = playing_animation.seek_time();
-            playing_animation.seek_to(elapsed + 0.1);
-        }
-
-        if keyboard_input.just_pressed(KeyCode::Enter) {
-            *current_animation = (*current_animation + 1) % animations.animations.len();
-
-            transitions
-                .play(
-                    &mut player,
-                    3.into(),
-                    Duration::from_millis(0),
-                );
-
-            info!("Animation INDEX: {:?}", animations.animations[*current_animation]);
-
-            // transitions
-            //     .play(
-            //         &mut player,
-            //         animations.animations[*current_animation],
-            //         Duration::from_millis(250),
-            //     )
-            //     .repeat();
-        }
-
-        if keyboard_input.just_pressed(KeyCode::Digit1) {
-            let playing_animation = player.animation_mut(playing_animation_index).unwrap();
-            playing_animation
-                .set_repeat(RepeatAnimation::Count(1))
-                .replay();
-        }
-
-        if keyboard_input.just_pressed(KeyCode::Digit3) {
-            let playing_animation = player.animation_mut(playing_animation_index).unwrap();
-            playing_animation
-                .set_repeat(RepeatAnimation::Count(3))
-                .replay();
-        }
-
-        if keyboard_input.just_pressed(KeyCode::Digit5) {
-            let playing_animation = player.animation_mut(playing_animation_index).unwrap();
-            playing_animation
-                .set_repeat(RepeatAnimation::Count(5))
-                .replay();
-        }
-
-        if keyboard_input.just_pressed(KeyCode::KeyL) {
-            let playing_animation = player.animation_mut(playing_animation_index).unwrap();
-            playing_animation.set_repeat(RepeatAnimation::Forever);
-        }
     }
 }
+
+// fn keyboard_animation_control(
+//     keyboard_input: Res<ButtonInput<KeyCode>>,
+//     mut animation_players: Query<(&mut AnimationPlayer, &mut AnimationTransitions)>,
+//     animations: Res<Animations>,
+//     mut current_animation: Local<usize>,
+// ) {
+//     for (mut player, mut transitions) in &mut animation_players {
+//         let Some((&playing_animation_index, _)) = player.playing_animations().next() else {
+//             continue;
+//         };
+//
+//         if keyboard_input.just_pressed(KeyCode::Space) {
+//             let playing_animation = player.animation_mut(playing_animation_index).unwrap();
+//             if playing_animation.is_paused() {
+//                 playing_animation.resume();
+//             } else {
+//                 playing_animation.pause();
+//             }
+//         }
+//
+//         if keyboard_input.just_pressed(KeyCode::ArrowUp) {
+//             let playing_animation = player.animation_mut(playing_animation_index).unwrap();
+//             let speed = playing_animation.speed();
+//             playing_animation.set_speed(speed * 1.2);
+//         }
+//
+//         if keyboard_input.just_pressed(KeyCode::ArrowDown) {
+//             let playing_animation = player.animation_mut(playing_animation_index).unwrap();
+//             let speed = playing_animation.speed();
+//             playing_animation.set_speed(speed * 0.8);
+//         }
+//
+//         if keyboard_input.just_pressed(KeyCode::ArrowLeft) {
+//             let playing_animation = player.animation_mut(playing_animation_index).unwrap();
+//             let elapsed = playing_animation.seek_time();
+//             playing_animation.seek_to(elapsed - 0.1);
+//         }
+//
+//         if keyboard_input.just_pressed(KeyCode::ArrowRight) {
+//             let playing_animation = player.animation_mut(playing_animation_index).unwrap();
+//             let elapsed = playing_animation.seek_time();
+//             playing_animation.seek_to(elapsed + 0.1);
+//         }
+//
+//         if keyboard_input.just_pressed(KeyCode::Enter) {
+//             *current_animation = (*current_animation + 1) % animations.animations.len();
+//
+//             transitions
+//                 .play(
+//                     &mut player,
+//                     3.into(),
+//                     Duration::from_millis(0),
+//                 );
+//
+//             info!("Animation INDEX: {:?}", animations.animations[*current_animation]);
+//
+//             // transitions
+//             //     .play(
+//             //         &mut player,
+//             //         animations.animations[*current_animation],
+//             //         Duration::from_millis(250),
+//             //     )
+//             //     .repeat();
+//         }
+//
+//         if keyboard_input.just_pressed(KeyCode::Digit1) {
+//             let playing_animation = player.animation_mut(playing_animation_index).unwrap();
+//             playing_animation
+//                 .set_repeat(RepeatAnimation::Count(1))
+//                 .replay();
+//         }
+//
+//         if keyboard_input.just_pressed(KeyCode::Digit3) {
+//             let playing_animation = player.animation_mut(playing_animation_index).unwrap();
+//             playing_animation
+//                 .set_repeat(RepeatAnimation::Count(3))
+//                 .replay();
+//         }
+//
+//         if keyboard_input.just_pressed(KeyCode::Digit5) {
+//             let playing_animation = player.animation_mut(playing_animation_index).unwrap();
+//             playing_animation
+//                 .set_repeat(RepeatAnimation::Count(5))
+//                 .replay();
+//         }
+//
+//         if keyboard_input.just_pressed(KeyCode::KeyL) {
+//             let playing_animation = player.animation_mut(playing_animation_index).unwrap();
+//             playing_animation.set_repeat(RepeatAnimation::Forever);
+//         }
+//     }
+// }
