@@ -4,13 +4,24 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-bevy = "0.15.3"
-bevy_ecs_ldtk = "0.11.0"
+bevy = { version = "0.15.3" }
 bevy_rapier2d = "0.29.0"
 wasm-bindgen = "0.2.100"
 bevy_infinite_grid = "0.14.1"
 bevy_panorbit_camera = "0.25.0"
 bevy_sprite3d = "4.0.0"
 num-traits = "0.2"
-fastrand = "2.3.0"
+fastrand = { version = "2.3.0", features = ["js"] }
 bevy_mod_skinned_aabb = "0.1.0"
+#bincode = { version = "1.3.2" }
+serde = { version = "1.0.219", features = ["derive"] }
+#shared = { path = "../shared" }
+#wasm-timer = { version = "0.2.5" }
+#bevy_simplenet = { version = "0.15.2", features = ["bevy", "client"] }
+
+bevy_simplenet = { version = "0.15.2", default-features = false, optional = false, features = ["client"]}
+enfync = { version = "0.1.6" }
+url = { version = "2.5.4" }
+wasm-timer = { version = "0.2.5" }
+
+

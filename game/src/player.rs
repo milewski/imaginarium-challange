@@ -116,6 +116,7 @@ fn player_system(
     }
 
     let Ok((mut player, player_transform)) = query.get_single_mut() else {
+        info!("gone");
         unreachable!()
     };
 

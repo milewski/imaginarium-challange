@@ -84,14 +84,6 @@ fn setup(
         },
         Player::default(),
     ));
-
-    println!("Animation controls:");
-    println!("  - spacebar: play / pause");
-    println!("  - arrow up / down: speed up / slow down animation playback");
-    println!("  - arrow left / right: seek backward / forward");
-    println!("  - digit 1 / 3 / 5: play the animation <digit> times");
-    println!("  - L: loop the animation forever");
-    println!("  - return: change animation");
 }
 
 // An `AnimationPlayer` is automatically added to the scene when it's ready.
@@ -111,7 +103,10 @@ fn setup_scene_once_loaded(
         let node = graph.get(node).unwrap();
         let clip = match &node.node_type {
             AnimationNodeType::Clip(handle) => clips.get_mut(handle),
-            _ => unreachable!(),
+            _ => {
+                info!("gone gone");
+                unreachable!()
+            },
         };
         clip.unwrap()
     }
