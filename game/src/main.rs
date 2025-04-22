@@ -1,3 +1,4 @@
+#![allow(warnings)]
 mod mouse_plugin;
 mod player;
 mod fox_plugin;

@@ -1,59 +1,63 @@
+use bincode::config;
+use futures_util::{SinkExt, StreamExt};
+use shared::{Coordinate, SystemMessages};
 use std::collections::HashMap;
 use std::error::Error;
-
-use bevy_simplenet::ServerReport;
-
-use shared::{Coordinate, DemoChannel};
+use tokio::net::{TcpListener, TcpStream};
+use tokio_tungstenite::accept_async;
+use tokio_tungstenite::tungstenite::Message;
 
 #[derive(Default)]
 struct PlayerData {
-    position: Coordinate
+    position: Coordinate,
 }
 
 #[derive(Default)]
 struct Cache {
-    clients: HashMap<u32, PlayerData>
+    clients: HashMap<u32, PlayerData>,
 }
 
-fn server_factory() -> bevy_simplenet::ServerFactory<DemoChannel> {
-    bevy_simplenet::ServerFactory::<DemoChannel>::new("demo")
-}
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn Error>> {
+    let try_socket = TcpListener::bind(&"127.0.0.1:9001").await;
+    let listener = try_socket.expect("Failed to bind");
 
-type DemoServerEvent = bevy_simplenet::ServerEventFrom<DemoChannel>;
-
-fn main() -> Result<(), Box<dyn Error>> {
-
-    // simplenet server
-    // - we use a baked-in address so you can close and reopen the server to test clients being disconnected
-    let mut server = server_factory().new_server(
-        enfync::builtin::native::TokioHandle::default(),
-        "127.0.0.1:48888",
-        bevy_simplenet::AcceptorConfig::Default,
-        bevy_simplenet::Authenticator::None,
-        bevy_simplenet::ServerConfig {
-            heartbeat_interval: std::time::Duration::from_secs(6),  //slower than client to avoid redundant pings
-            ..Default::default()
-        },
-    );
-
-    loop {
-        while let Some((client_id, event)) = server.next() {
-            match event {
-                DemoServerEvent::Report(report) => {
-                    match report {
-                        ServerReport::Connected(_, _) => {
-                            println!("client connected {:?}", client_id)
-                        }
-                        ServerReport::Disconnected => {
-                            println!("client disconnected {:?}", client_id)
-                        }
-                    }
-                },
-                DemoServerEvent::Msg(_) => {},
-                DemoServerEvent::Request(_, _) => {},
-            }
-        }
+    while let Ok((stream, _)) = listener.accept().await {
+        tokio::spawn(accept_connection(stream));
     }
 
     Ok(())
+}
+
+async fn accept_connection(stream: TcpStream) {
+    let addr = stream
+        .peer_addr()
+        .expect("connected streams should have a peer address");
+    println!("Peer address: {}", addr);
+
+    let ws_stream = accept_async(stream)
+        .await
+        .expect("WebSocket handshake failed");
+    println!("New WebSocket connection: {}", addr);
+
+    let (mut write, mut read) = ws_stream.split();
+
+    let message = SystemMessages::PlayerPosition {
+        coordinate: Coordinate::default(),
+    };
+
+    let encoded = bincode::encode_to_vec(message, config::standard()).unwrap();
+
+    let _ = write.send(Message::binary(encoded)).await;
+
+    while let Some(Ok(message)) = read.next().await {
+        if message.is_binary() {
+            let config = config::standard();
+            let text: (SystemMessages, _) = bincode::decode_from_slice(message.into_data().as_ref(), config).unwrap();
+
+            println!("received {:?}", text)
+        }
+    }
+
+    println!("Connection closed: {}", addr);
 }

@@ -5,11 +5,12 @@ use bevy::gltf::GltfAssetLabel;
 use bevy::input::ButtonInput;
 use bevy::log::info;
 use bevy::math::{Quat, Vec2, Vec3};
-use bevy::prelude::{AnimationNodeIndex, Camera, Component, GlobalTransform, InfinitePlane3d, MouseButton, Projection, Query, Res, Time, Transform, Window, With, Without};
+use bevy::prelude::{AnimationNodeIndex, Camera, Component, GlobalTransform, InfinitePlane3d, MouseButton, Projection, Query, Res, ResMut, Time, Transform, Window, With, Without};
 use bevy_rapier2d::prelude::Collider;
 use bevy_sprite3d::{Sprite3d, Sprite3dBuilder, Sprite3dBundle};
 use std::time::Duration;
 use bevy_rapier2d::rapier::math::Point;
+use shared::{Coordinate, SystemMessages};
 use crate::tokens::Token;
 
 #[derive(Default, Debug, Clone, Copy, PartialEq)]
@@ -110,6 +111,7 @@ fn player_system(
     mouse: Res<ButtonInput<MouseButton>>,
     windows: Query<&Window>,
     camera_query: Query<(&Camera, &GlobalTransform), With<Projection>>,
+    mut socket: ResMut<crate::network::WebsocketResource>
 ) {
     if !mouse.just_pressed(MouseButton::Left) {
         return;
@@ -170,6 +172,15 @@ fn player_system(
                 // }
 
                 info!("target -> {:?}", intersection_point);
+
+                let payload = SystemMessages::PlayerPosition {
+                    coordinate: Coordinate {
+                        x: intersection_point.x as i32,
+                        y: intersection_point.y as i32,
+                    },
+                };
+
+                socket.send(payload);
             }
         }
     }

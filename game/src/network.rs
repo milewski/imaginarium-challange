@@ -1,71 +1,134 @@
-use std::time::{Duration};
+use std::collections::VecDeque;
+use std::io::Read;
+use std::sync::Arc;
+use std::time::{Duration, SystemTime};
 
+use crate::player::Player;
 use bevy::app::{App, Plugin};
 use bevy::diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin};
+use bevy::ecs::system::RunSystemOnce;
 use bevy::prelude::*;
 use bevy::utils::info;
-// use bevy_simplenet::{ClientConfig, ClientEventFrom, ClientReport};
+use bincode::{config, Encode};
+use futures_util::stream::SplitSink;
+use futures_util::{SinkExt, StreamExt};
+use gloo_timers::future::TimeoutFuture;
 use serde::{Deserialize, Serialize};
-// use wasm_timer::{SystemTime, UNIX_EPOCH};
-
-// use shared::{DemoChannel, ServerChannel, ServerMessages};
-
-// type DemoClient = bevy_simplenet::Client<DemoChannel>;
-// type DemoClientEvent = bevy_simplenet::ClientEventFrom<DemoChannel>;
-
-pub const PROTOCOL_ID: u64 = 7;
+use shared::{Coordinate, SystemMessages};
+use tokio::sync::{Mutex, TryLockError};
+use tokio::task::spawn_local;
+use tokio::time::sleep;
+use tokio_tungstenite_wasm::{Message, WebSocketStream};
+use wasm_timer::Delay;
 
 #[derive(SystemSet, Debug, Clone, Copy, PartialEq, Eq, Hash)]
 struct Connected;
 
-#[derive(Debug, Resource)]
-struct CurrentClientId(u64);
-
 pub struct NetworkPlugin;
 
-fn client_factory() -> bevy_simplenet::ClientFactory<DemoChannel> {
-    bevy_simplenet::ClientFactory::<DemoChannel>::new("demo")
+#[derive(Resource, Debug, Default, Clone)]
+pub struct WebsocketResource {
+    read_queue: Arc<Mutex<Vec<SystemMessages>>>,
+    write_queue: Arc<Mutex<Vec<SystemMessages>>>,
+}
+
+impl WebsocketResource {
+    pub fn read(&self) -> Option<SystemMessages> {
+        self.read_queue
+            .try_lock()
+            .ok()
+            .map(|mut queue| queue.pop())
+            .flatten()
+    }
+
+    pub fn send(&self, payload: SystemMessages) {
+        let queue_clone = self.write_queue.clone();
+
+        wasm_bindgen_futures::spawn_local(async move {
+            let mut queue = queue_clone.lock().await;
+            queue.push(payload);
+        });
+    }
 }
 
 impl Plugin for NetworkPlugin {
     fn build(&self, app: &mut App) {
-        let client = client_factory().new_client(
-            enfync::builtin::native::TokioHandle::default(),
-            url::Url::parse("ws://127.0.0.1:48888/ws").unwrap(),
-            bevy_simplenet::AuthRequest::None {
-                client_id: SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_millis()
-            },
-            ClientConfig::default(),
-            ()
+        app.add_systems(
+            Update,
+            (receive_websocket_message_system, send_player_position),
         );
-        //
-        // app.insert_resource(client);
-        // app.add_systems(Update, client_sync_players);
+
+        let queue = WebsocketResource::default();
+        let queue_clone = queue.clone();
+
+        app.world_mut().insert_resource(queue);
+
+        wasm_bindgen_futures::spawn_local(async move {
+            let url = url::Url::parse("ws://127.0.0.1:9001").unwrap();
+            let mut stream = tokio_tungstenite_wasm::connect(url)
+                .await
+                .expect("Failed to connect");
+
+            let (mut write, mut read) = stream.split();
+
+            wasm_bindgen_futures::spawn_local(async move {
+                loop {
+                    {
+                        let mut messages = queue_clone.write_queue.lock().await;
+
+                        for payload in messages.drain(..) {
+                            let encoded =
+                                bincode::encode_to_vec(payload, config::standard()).unwrap();
+                            write.send(Message::binary(encoded)).await.unwrap();
+                        }
+                    }
+
+                    TimeoutFuture::new(10).await;
+                }
+            });
+
+            wasm_bindgen_futures::spawn_local(async move {
+                loop {
+                    if let Some(Ok(message)) = read.next().await {
+                        if let mut messages = queue_clone.read_queue.lock().await {
+                            if message.is_binary() {
+                                let decoded = bincode::decode_from_slice(
+                                    message.into_data().as_ref(),
+                                    config::standard(),
+                                );
+
+                                if let Ok((SystemMessages, _)) = decoded {
+                                    messages.push(SystemMessages);
+                                }
+                            }
+                        }
+                    }
+
+                    TimeoutFuture::new(10).await;
+                }
+            });
+        });
     }
 }
 
-// fn client_sync_players(
-//     mut client: ResMut<DemoClient>,
-// ) {
-//     while let Some(client_event) = client.next() {
-//         match client_event {
-//             DemoClientEvent::Report(report) => {
-//                 match report {
-//                     ClientReport::Connected => {
-//                         println!("Connected !")
-//                     }
-//                     ClientReport::Disconnected => {}
-//                     ClientReport::ClosedByServer(_) => {}
-//                     ClientReport::ClosedBySelf => {}
-//                     ClientReport::IsDead(_) => {}
-//                 }
-//             },
-//             DemoClientEvent::Msg(_) => {},
-//             DemoClientEvent::Response(_, _) => {},
-//             DemoClientEvent::Ack(_) => {},
-//             DemoClientEvent::Reject(_) => {},
-//             DemoClientEvent::SendFailed(_) => {},
-//             DemoClientEvent::ResponseLost(_) => {},
-//         }
-//     }
-// }
+fn receive_websocket_message_system(mut messages: ResMut<WebsocketResource>) {
+    println!("received websocket message");
+    if let Some(message) = messages.read() {
+        info!("Received {:?}", message)
+    }
+}
+
+fn send_player_position(mut player: Query<&Player>, mut messages: ResMut<WebsocketResource>) {
+    // let player = player.single();
+    // let (x, y) = player.current_position;
+    // let payload = SystemMessages::PlayerPosition {
+    //     coordinate: Coordinate {
+    //         x: x as i32,
+    //         y: y as i32,
+    //     },
+    // };
+    //
+    // if let Err(error) = messages.send(payload) {
+    //     info!("Received {:?}", error)
+    // }
+}
