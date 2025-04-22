@@ -163,7 +163,7 @@ fn spawn_tokens_around_center(
 
 fn iso_to_world(grid: Vec2) -> Vec2 {
     let tile_width = 1.0;
-    let tile_height = 0.5;
+    let tile_height = 1.0;
 
     Vec2::new(
         (grid.x - grid.y) * tile_width / 2.0,
