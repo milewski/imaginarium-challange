@@ -1,4 +1,4 @@
-use crate::fox_plugin::FOX_PATH;
+use crate::fox_plugin::ROBOT_GLB_PATH;
 use crate::tokens::Token;
 use bevy::app::{App, Plugin, Update};
 use bevy::asset::{AssetPath, AssetServer};
@@ -31,11 +31,11 @@ pub enum PlayerAnimation {
 impl PlayerAnimation {
     pub fn clips() -> [AssetPath<'static>; 5] {
         [
-            GltfAssetLabel::Animation(Self::Idle as usize).from_asset(FOX_PATH),
-            GltfAssetLabel::Animation(Self::Jumping as usize).from_asset(FOX_PATH),
-            GltfAssetLabel::Animation(Self::Running as usize).from_asset(FOX_PATH),
-            GltfAssetLabel::Animation(Self::Walking as usize).from_asset(FOX_PATH),
-            GltfAssetLabel::Animation(Self::Standing as usize).from_asset(FOX_PATH),
+            GltfAssetLabel::Animation(Self::Idle as usize).from_asset(ROBOT_GLB_PATH),
+            GltfAssetLabel::Animation(Self::Jumping as usize).from_asset(ROBOT_GLB_PATH),
+            GltfAssetLabel::Animation(Self::Running as usize).from_asset(ROBOT_GLB_PATH),
+            GltfAssetLabel::Animation(Self::Walking as usize).from_asset(ROBOT_GLB_PATH),
+            GltfAssetLabel::Animation(Self::Standing as usize).from_asset(ROBOT_GLB_PATH),
         ]
     }
 
@@ -61,8 +61,8 @@ pub struct PlayerPlugin;
 
 impl Plugin for PlayerPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(Update, player_system)
-            .add_systems(Update, player_movement_system);
+        // app.add_systems(Update, player_system);
+        app .add_systems(Update, player_movement_system);
 
         // app.add_systems(Update, spawn_player);
     }
@@ -207,7 +207,7 @@ pub fn spawn_player(
 ) {
     for event in player_spawned.read() {
         commands.spawn((
-            SceneRoot(asset_server.load(GltfAssetLabel::Scene(0).from_asset(FOX_PATH))),
+            SceneRoot(asset_server.load(GltfAssetLabel::Scene(0).from_asset(ROBOT_GLB_PATH))),
             Transform {
                 scale: Vec3::splat(0.5),
                 translation: event.0.position.to_vec3(),

@@ -1,14 +1,19 @@
 #![allow(warnings)]
-mod mouse_plugin;
-mod player;
-mod fox_plugin;
 mod button_plugin;
-mod tokens;
+mod fox_plugin;
+mod mouse_plugin;
 mod network;
+mod player;
 mod robot;
+mod tokens;
 
+use crate::button_plugin::ButtonPlugin;
+use crate::fox_plugin::FoxPlugin;
 use crate::mouse_plugin::{Draggable, MousePlugin};
+use crate::network::NetworkPlugin;
 use crate::player::{Player, PlayerPlugin};
+use crate::robot::RobotPlugin;
+use crate::tokens::TokensPlugin;
 use bevy::color::palettes::tailwind::{GRAY_100, GRAY_200};
 use bevy::prelude::*;
 use bevy::render::camera::ScalingMode;
@@ -20,11 +25,6 @@ use bevy_sprite3d::{Sprite3dBuilder, Sprite3dParams, Sprite3dPlugin};
 use num_traits::{Float, FloatConst};
 use std::any::Any;
 use std::f32::consts::PI;
-use crate::button_plugin::ButtonPlugin;
-use crate::fox_plugin::FoxPlugin;
-use crate::network::NetworkPlugin;
-use crate::robot::RobotPlugin;
-use crate::tokens::TokensPlugin;
 
 #[derive(Resource, Default)]
 struct AssetsCache(Vec<Handle<Image>>);
@@ -45,7 +45,7 @@ fn main() {
         .add_plugins(PlayerPlugin)
         .add_plugins((ButtonPlugin, TokensPlugin))
         .add_plugins(Sprite3dPlugin)
-        .add_plugins(FoxPlugin)
+        // .add_plugins(FoxPlugin)
         // .add_plugins(PanOrbitCameraPlugin)
         .insert_resource(ClearColor(Color::WHITE))
         .init_state::<GameState>()

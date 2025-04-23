@@ -20,7 +20,7 @@ use tokio::task::spawn_local;
 use tokio::time::sleep;
 use tokio_tungstenite_wasm::{Message, WebSocketStream};
 use wasm_timer::Delay;
-use crate::fox_plugin::FOX_PATH;
+use crate::fox_plugin::ROBOT_GLB_PATH;
 
 #[derive(SystemSet, Debug, Clone, Copy, PartialEq, Eq, Hash)]
 struct Connected;
@@ -131,20 +131,20 @@ fn receive_websocket_message_system(
             }
             SystemMessages::PlayerPosition { .. } => {}
             SystemMessages::PlayerSpawn { data } => {
-                let entity = commands
-                    .spawn((
-                        SceneRoot(asset_server.load(GltfAssetLabel::Scene(0).from_asset(FOX_PATH))),
-                        Transform {
-                            scale: Vec3::splat(0.5),
-                            translation: data.position.to_vec3(),
-                            ..default()
-                        },
-                        data.id,
-                        Player::default(),
-                    ))
-                    .id();
-
-                player_entities.0.insert(data.id, (data, entity));
+                // let entity = commands
+                //     .spawn((
+                //         SceneRoot(asset_server.load(GltfAssetLabel::Scene(0).from_asset(ROBOT_GLB_PATH))),
+                //         Transform {
+                //             scale: Vec3::splat(0.5),
+                //             translation: data.position.to_vec3(),
+                //             ..default()
+                //         },
+                //         data.id,
+                //         Player::default(),
+                //     ))
+                //     .id();
+                //
+                // player_entities.0.insert(data.id, (data, entity));
             }
         }
 

@@ -11,7 +11,7 @@ use bevy::{
 
 use crate::player::{Player, PlayerAnimation};
 
-pub const FOX_PATH: &str = "RobotExpressive.glb";
+pub const ROBOT_GLB_PATH: &str = "RobotExpressive.glb";
 
 pub struct FoxPlugin;
 
