@@ -1,17 +1,22 @@
 use crate::fox_plugin::FOX_PATH;
+use crate::tokens::Token;
 use bevy::app::{App, Plugin, Update};
-use bevy::asset::AssetPath;
+use bevy::asset::{AssetPath, AssetServer};
 use bevy::gltf::GltfAssetLabel;
 use bevy::input::ButtonInput;
 use bevy::log::info;
 use bevy::math::{Quat, Vec2, Vec3};
-use bevy::prelude::{AnimationNodeIndex, Camera, Component, GlobalTransform, InfinitePlane3d, MouseButton, Projection, Query, Res, ResMut, Time, Transform, Window, With, Without};
+use bevy::prelude::{
+    default, AnimationNodeIndex, Camera, Commands, Component, Entity, Event, EventReader,
+    GlobalTransform, InfinitePlane3d, MouseButton, Projection, Query, Res, ResMut, SceneRoot, Time,
+    Transform, Window, With, Without,
+};
 use bevy_rapier2d::prelude::Collider;
-use bevy_sprite3d::{Sprite3d, Sprite3dBuilder, Sprite3dBundle};
-use std::time::Duration;
 use bevy_rapier2d::rapier::math::Point;
-use shared::{Coordinate, SystemMessages};
-use crate::tokens::Token;
+use bevy_sprite3d::{Sprite3d, Sprite3dBuilder, Sprite3dBundle};
+use shared::{Coordinate, PlayerData, SystemMessages};
+use std::process::Command;
+use std::time::Duration;
 
 #[derive(Default, Debug, Clone, Copy, PartialEq)]
 pub enum PlayerAnimation {
@@ -58,6 +63,8 @@ impl Plugin for PlayerPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(Update, player_system)
             .add_systems(Update, player_movement_system);
+
+        // app.add_systems(Update, spawn_player);
     }
 }
 
@@ -111,7 +118,7 @@ fn player_system(
     mouse: Res<ButtonInput<MouseButton>>,
     windows: Query<&Window>,
     camera_query: Query<(&Camera, &GlobalTransform), With<Projection>>,
-    mut socket: ResMut<crate::network::WebsocketResource>
+    mut socket: ResMut<crate::network::WebsocketResource>,
 ) {
     if !mouse.just_pressed(MouseButton::Left) {
         return;
@@ -161,7 +168,11 @@ fn player_system(
 
                 player.current_animation = PlayerAnimation::Running;
                 player.path = Some((
-                    is_blocked(&player_transform.translation, &intersection_point, &elements),
+                    is_blocked(
+                        &player_transform.translation,
+                        &intersection_point,
+                        &elements,
+                    ),
                     rotation,
                 ));
 
@@ -173,16 +184,37 @@ fn player_system(
 
                 info!("target -> {:?}", intersection_point);
 
-                let payload = SystemMessages::PlayerPosition {
-                    coordinate: Coordinate {
-                        x: intersection_point.x as i32,
-                        y: intersection_point.y as i32,
-                    },
-                };
-
-                socket.send(payload);
+                // let payload = SystemMessages::PlayerPosition {
+                //     coordinate: Coordinate {
+                //         x: intersection_point.x as i32,
+                //         y: intersection_point.y as i32,
+                //     },
+                // };
+                //
+                // socket.send(payload);
             }
         }
+    }
+}
+
+#[derive(Event)]
+pub struct PlayerSpawnEvent(PlayerData);
+
+pub fn spawn_player(
+    commands: &mut Commands,
+    asset_server: Res<AssetServer>,
+    mut player_spawned: EventReader<PlayerSpawnEvent>,
+) {
+    for event in player_spawned.read() {
+        commands.spawn((
+            SceneRoot(asset_server.load(GltfAssetLabel::Scene(0).from_asset(FOX_PATH))),
+            Transform {
+                scale: Vec3::splat(0.5),
+                translation: event.0.position.to_vec3(),
+                ..default()
+            },
+            Player::default(),
+        ));
     }
 }
 
@@ -222,7 +254,6 @@ fn player_movement_system(
 
                 let t = (time.delta_secs() * 8.0).min(1.0);
                 transform.rotation = current_rotation.slerp(rotation, t);
-
             } else {
                 transform.translation = target;
                 transform.rotation = rotation;

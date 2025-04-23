@@ -9,4 +9,6 @@ name = "shared"
 [dependencies]
 bincode = { version = "2.0.1", features = ["derive"] }
 serde = { version = "1.0.219", features = ["derive"] }
+fastrand = { version = "2.3.0", features = ["js"] }
+bevy = { version = "0.15.3" }
 #bevy_simplenet = { version = "0.15.2", features = ["client", "bevy"] }

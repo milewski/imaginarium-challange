@@ -29,33 +29,6 @@ struct Animations {
     graph: Handle<AnimationGraph>,
 }
 
-#[derive(Event, Reflect, Clone)]
-struct OnStep;
-
-// fn observe_on_step(
-//     trigger: Trigger<OnStep>,
-//     particle: Res<ParticleAssets>,
-//     mut commands: Commands,
-//     transforms: Query<&GlobalTransform>,
-// ) {
-//     let translation = transforms.get(trigger.entity()).unwrap().translation();
-//     let mut rng = thread_rng();
-//     // Spawn a bunch of particles.
-//     for _ in 0..14 {
-//         let horizontal = rng.gen::<Dir2>() * rng.gen_range(8.0..12.0);
-//         let vertical = rng.gen_range(0.0..4.0);
-//         let size = rng.gen_range(0.2..1.0);
-//         commands.queue(spawn_particle(
-//             particle.mesh.clone(),
-//             particle.material.clone(),
-//             translation.reject_from_normalized(Vec3::Y),
-//             rng.gen_range(0.2..0.6),
-//             size,
-//             Vec3::new(horizontal.x, vertical, horizontal.y) * 10.0,
-//         ));
-//     }
-// }
-
 fn setup(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
@@ -106,7 +79,7 @@ fn setup_scene_once_loaded(
             _ => {
                 info!("gone gone");
                 unreachable!()
-            },
+            }
         };
         clip.unwrap()
     }
@@ -145,50 +118,52 @@ fn switch_player_animation(
     mut queue: Local<Queue>,
     mut delay_timer: Local<Option<Timer>>,
 ) {
-    let player = query.single();
+    // let player = query.single();
 
-    if player.current_animation == *previous_animation && *queue == Queue::None {
-        return;
-    }
+    'parent: for player in query.iter() {
+        if player.current_animation == *previous_animation && *queue == Queue::None {
+            continue;
+        }
 
-    for (mut animation_player, mut transitions) in &mut animation_players {
-        match *queue {
-            Queue::Next(animation) => {
-                if let Some(timer) = delay_timer.as_mut() {
-                    timer.tick(time.delta());
+        for (mut animation_player, mut transitions) in &mut animation_players {
+            match *queue {
+                Queue::Next(animation) => {
+                    if let Some(timer) = delay_timer.as_mut() {
+                        timer.tick(time.delta());
 
-                    if !timer.finished() {
-                        return;
+                        if !timer.finished() {
+                            continue 'parent;
+                        }
+
+                        *delay_timer = None;
                     }
 
-                    *delay_timer = None;
+                    transitions
+                        .play(
+                            &mut animation_player,
+                            animation.to_animation(),
+                            Duration::from_millis(250),
+                        )
+                        .repeat();
+
+                    *previous_animation = current_animation.clone();
+                    *queue = Queue::None;
                 }
+                Queue::None => {
+                    *current_animation = player.current_animation.clone();
 
-                transitions
-                    .play(
-                        &mut animation_player,
-                        animation.to_animation(),
-                        Duration::from_millis(250),
-                    )
-                    .repeat();
+                    if player.current_animation == PlayerAnimation::Idle {
+                        transitions.play(
+                            &mut animation_player,
+                            PlayerAnimation::Jumping.to_animation(),
+                            Duration::from_millis(250),
+                        );
 
-                *previous_animation = current_animation.clone();
-                *queue = Queue::None;
-            }
-            Queue::None => {
-                *current_animation = player.current_animation.clone();
+                        *delay_timer = Some(Timer::from_seconds(0.708, TimerMode::Once));
+                    }
 
-                if player.current_animation == PlayerAnimation::Idle {
-                    transitions.play(
-                        &mut animation_player,
-                        PlayerAnimation::Jumping.to_animation(),
-                        Duration::from_millis(250),
-                    );
-
-                    *delay_timer = Some(Timer::from_seconds(0.708, TimerMode::Once));
+                    *queue = Queue::Next(player.current_animation);
                 }
-
-                *queue = Queue::Next(player.current_animation);
             }
         }
     }

@@ -3,23 +3,24 @@ use std::io::Read;
 use std::sync::Arc;
 use std::time::{Duration, SystemTime};
 
-use crate::player::Player;
+use crate::player::{Player};
 use bevy::app::{App, Plugin};
 use bevy::diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin};
 use bevy::ecs::system::RunSystemOnce;
 use bevy::prelude::*;
-use bevy::utils::info;
+use bevy::utils::{info, HashMap};
 use bincode::{config, Encode};
 use futures_util::stream::SplitSink;
 use futures_util::{SinkExt, StreamExt};
 use gloo_timers::future::TimeoutFuture;
 use serde::{Deserialize, Serialize};
-use shared::{Coordinate, SystemMessages};
+use shared::{Coordinate, PlayerData, PlayerId, SystemMessages};
 use tokio::sync::{Mutex, TryLockError};
 use tokio::task::spawn_local;
 use tokio::time::sleep;
 use tokio_tungstenite_wasm::{Message, WebSocketStream};
 use wasm_timer::Delay;
+use crate::fox_plugin::FOX_PATH;
 
 #[derive(SystemSet, Debug, Clone, Copy, PartialEq, Eq, Hash)]
 struct Connected;
@@ -57,6 +58,8 @@ impl Plugin for NetworkPlugin {
             Update,
             (receive_websocket_message_system, send_player_position),
         );
+
+        app.insert_resource(PlayerEntities::default());
 
         let queue = WebsocketResource::default();
         let queue_clone = queue.clone();
@@ -111,12 +114,51 @@ impl Plugin for NetworkPlugin {
     }
 }
 
-fn receive_websocket_message_system(mut messages: ResMut<WebsocketResource>) {
-    println!("received websocket message");
+#[derive(Resource, Default)]
+struct PlayerEntities(HashMap<PlayerId, (PlayerData, Entity)>);
+
+fn receive_websocket_message_system(
+    mut commands: Commands,
+    mut messages: ResMut<WebsocketResource>,
+    mut player_entities: ResMut<PlayerEntities>,
+    asset_server: Res<AssetServer>,
+) {
     if let Some(message) = messages.read() {
+        match message {
+            SystemMessages::Connected { .. } => {}
+            SystemMessages::Welcome { data } => {
+                commands.insert_resource(data);
+            }
+            SystemMessages::PlayerPosition { .. } => {}
+            SystemMessages::PlayerSpawn { data } => {
+                let entity = commands
+                    .spawn((
+                        SceneRoot(asset_server.load(GltfAssetLabel::Scene(0).from_asset(FOX_PATH))),
+                        Transform {
+                            scale: Vec3::splat(0.5),
+                            translation: data.position.to_vec3(),
+                            ..default()
+                        },
+                        data.id,
+                        Player::default(),
+                    ))
+                    .id();
+
+                player_entities.0.insert(data.id, (data, entity));
+            }
+        }
+
         info!("Received {:?}", message)
     }
 }
+
+// fn player_movement_system(
+//     mut query: Query<(&PlayerId, &mut Transform), With<Player>>,
+// ) {
+//     for (id, mut transform) in query.iter_mut() {
+//         // Move based on player id or other logic
+//     }
+// }
 
 fn send_player_position(mut player: Query<&Player>, mut messages: ResMut<WebsocketResource>) {
     // let player = player.single();

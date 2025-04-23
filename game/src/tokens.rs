@@ -60,24 +60,26 @@ fn pickup_token_system(
     query: Query<(Entity, &Sprite3d, &Transform), With<Token>>, // All tokens
     player_query: Query<(&Player, &Transform)>,
 ) {
-    // Get player position
-    let player_transform = player_query.single().1; // Assuming there's only one player
+    for (player, player_transform) in player_query.iter() {
+        // Get player position
+        // let player_transform = player_query.single().1; // Assuming there's only one player
 
-    for (token_entity, sprite, token_transform) in query.iter() {
-        // Calculate distance between player and token
-        let distance = player_transform.translation.distance(token_transform.translation);
+        for (token_entity, sprite, token_transform) in query.iter() {
+            // Calculate distance between player and token
+            let distance = player_transform.translation.distance(token_transform.translation);
 
-        // Set a pickup radius (e.g., 1.0 units)
-        let pickup_radius = 2.0;
+            // Set a pickup radius (e.g., 1.0 units)
+            let pickup_radius = 2.0;
 
-        if distance < pickup_radius {
-            // Player has crossed the token's position, so pick it up
-            println!("Token picked up at: {:?}", token_transform.translation);
+            if distance < pickup_radius {
+                // Player has crossed the token's position, so pick it up
+                println!("Token picked up at: {:?}", token_transform.translation);
 
-            // Remove token from the world (or mark as picked up)
-            commands.entity(token_entity).despawn(); // Or use .despawn_recursive() if you need to clear children too
+                // Remove token from the world (or mark as picked up)
+                commands.entity(token_entity).despawn(); // Or use .despawn_recursive() if you need to clear children too
 
-            // Optionally, update the player’s score or inventory here
+                // Optionally, update the player’s score or inventory here
+            }
         }
     }
 }
