@@ -2,7 +2,6 @@
 
 use std::{f32::consts::PI, time::Duration};
 
-use crate::player::{Player, PlayerAnimation};
 use bevy::{
     animation::{AnimationTargetId, RepeatAnimation},
     color::palettes::css::WHITE,
@@ -10,95 +9,17 @@ use bevy::{
     prelude::*,
 };
 
+use crate::player::{Player, PlayerAnimation};
+
 pub const FOX_PATH: &str = "RobotExpressive.glb";
 
 pub struct FoxPlugin;
 
 impl Plugin for FoxPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(Startup, setup)
-            .add_systems(Update, setup_scene_once_loaded)
-            .add_systems(Update, switch_player_animation);
-        // .add_observer(observe_on_step);
-    }
-}
-
-#[derive(Resource)]
-struct Animations {
-    animations: Vec<AnimationNodeIndex>,
-    graph: Handle<AnimationGraph>,
-}
-
-fn setup(
-    mut commands: Commands,
-    asset_server: Res<AssetServer>,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<StandardMaterial>>,
-    mut graphs: ResMut<Assets<AnimationGraph>>,
-) {
-    // Build the animation graph
-    let (graph, node_indices) =
-        AnimationGraph::from_clips(PlayerAnimation::clips().map(|clip| asset_server.load(clip)));
-
-    // Insert a resource with the current scene information
-    let graph_handle = graphs.add(graph);
-
-    commands.insert_resource(Animations {
-        animations: node_indices,
-        graph: graph_handle,
-    });
-
-    // Fox
-    commands.spawn((
-        SceneRoot(asset_server.load(GltfAssetLabel::Scene(0).from_asset(FOX_PATH))),
-        Transform {
-            scale: Vec3::splat(0.5),
-            ..default()
-        },
-        Player::default(),
-    ));
-}
-
-// An `AnimationPlayer` is automatically added to the scene when it's ready.
-// When the player is added, start the animation.
-fn setup_scene_once_loaded(
-    mut commands: Commands,
-    animations: Res<Animations>,
-    graphs: Res<Assets<AnimationGraph>>,
-    mut clips: ResMut<Assets<AnimationClip>>,
-    mut players: Query<(Entity, &mut AnimationPlayer), Added<AnimationPlayer>>,
-) {
-    fn get_clip<'a>(
-        node: AnimationNodeIndex,
-        graph: &AnimationGraph,
-        clips: &'a mut Assets<AnimationClip>,
-    ) -> &'a mut AnimationClip {
-        let node = graph.get(node).unwrap();
-        let clip = match &node.node_type {
-            AnimationNodeType::Clip(handle) => clips.get_mut(handle),
-            _ => {
-                info!("gone gone");
-                unreachable!()
-            }
-        };
-        clip.unwrap()
-    }
-
-    for (entity, mut player) in &mut players {
-        let mut transitions = AnimationTransitions::new();
-
-        // Make sure to start the animation via the `AnimationTransitions`
-        // component. The `AnimationTransitions` component wants to manage all
-        // the animations and will get confused if the animations are started
-        // directly via the `AnimationPlayer`.
-        transitions
-            .play(&mut player, animations.animations[0], Duration::ZERO)
-            .repeat();
-
-        commands
-            .entity(entity)
-            .insert(AnimationGraphHandle(animations.graph.clone()))
-            .insert(transitions);
+        // app.add_systems(Startup, setup);
+        // app.add_systems(Update, setup_scene_once_loaded);
+        // app.add_systems(Update, switch_player_animation);
     }
 }
 

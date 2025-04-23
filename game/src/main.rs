@@ -5,6 +5,7 @@ mod fox_plugin;
 mod button_plugin;
 mod tokens;
 mod network;
+mod robot;
 
 use crate::mouse_plugin::{Draggable, MousePlugin};
 use crate::player::{Player, PlayerPlugin};
@@ -22,6 +23,7 @@ use std::f32::consts::PI;
 use crate::button_plugin::ButtonPlugin;
 use crate::fox_plugin::FoxPlugin;
 use crate::network::NetworkPlugin;
+use crate::robot::RobotPlugin;
 use crate::tokens::TokensPlugin;
 
 #[derive(Resource, Default)]
@@ -36,6 +38,7 @@ enum GameState {
 
 fn main() {
     App::new()
+        .add_plugins(RobotPlugin)
         .add_plugins(NetworkPlugin)
         .add_plugins((DefaultPlugins, InfiniteGridPlugin))
         .add_plugins(CameraController)
