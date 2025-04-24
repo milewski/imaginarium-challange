@@ -14,10 +14,10 @@ pub struct WebSocketReceiver(pub UnboundedReceiver<SystemMessages>);
 pub struct WebSocketSender(pub UnboundedSender<SystemMessages>);
 
 #[derive(Event, Debug, Clone)]
-pub struct WebSocketMessageReceived(SystemMessages);
+pub struct WebSocketMessageReceived(pub SystemMessages);
 
 #[derive(Event, Debug)]
-pub struct SendWebSocketMessage(SystemMessages);
+pub struct SendWebSocketMessage(pub SystemMessages);
 
 pub struct NetworkPlugin;
 
@@ -70,7 +70,7 @@ impl Plugin for NetworkPlugin {
 
 /// Send a ping to the server whenever the pressing the letter P (for debugging purpose)
 /// Server will reply with a pong
-fn send_ping_system(keyboard: Res<ButtonInput<KeyCode>>, mut event: EventWriter<SendWebSocketMessage>, ) {
+fn send_ping_system(keyboard: Res<ButtonInput<KeyCode>>, mut event: EventWriter<SendWebSocketMessage>) {
     if keyboard.just_pressed(KeyCode::KeyP) {
         event.send(SendWebSocketMessage(SystemMessages::Ping));
     }

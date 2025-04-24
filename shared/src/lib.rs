@@ -20,6 +20,15 @@ impl Coordinate {
     }
 }
 
+impl From<Vec3> for Coordinate {
+    fn from(value: Vec3) -> Self {
+        Coordinate {
+            x: value.x as i32,
+            y: value.y as i32
+        }
+    }
+}
+
 #[derive(Component, Debug, Copy, Clone, Hash, PartialEq, Eq, bincode::Encode, bincode::Decode)]
 pub struct PlayerId(u32);
 
@@ -29,7 +38,7 @@ impl PlayerId {
     }
 }
 
-#[derive(Resource, Debug, Copy, Clone, bincode::Encode, bincode::Decode)]
+#[derive(Debug, Copy, Clone, bincode::Encode, bincode::Decode)]
 pub struct PlayerData {
     pub id: PlayerId,
     pub position: Coordinate,
@@ -45,13 +54,12 @@ pub enum SystemMessages {
     Welcome {
         data: PlayerData,
     },
-    PlayerPosition {
-        id: PlayerId,
-        coordinate: Coordinate,
-    },
-    PlayerSpawn {
-        data: PlayerData,
-    },
+
+    PlayerPosition { coordinate: Coordinate },
+    EnemyPosition { id: PlayerId, coordinate: Coordinate },
+
+    MainPlayerSpawn { data: PlayerData },
+    EnemyPlayerSpawn { data: PlayerData },
 }
 
 impl TryFrom<Message> for SystemMessages {

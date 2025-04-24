@@ -1,115 +1,164 @@
 use std::collections::HashMap;
 use std::error::Error;
 use std::sync::Arc;
+use std::sync::atomic::{AtomicUsize, Ordering};
 
-use bincode::config;
 use futures_util::{SinkExt, StreamExt};
-use tokio::net::{TcpListener, TcpStream};
-use tokio::sync::Mutex;
+use tokio::net::TcpListener;
+use tokio::sync::{mpsc, Mutex};
 use tokio_tungstenite::accept_async;
-use tokio_tungstenite::tungstenite::Message;
 
 use shared::{Coordinate, PlayerData, PlayerId, SystemMessages};
 
-// use tokio_tungstenite_wasm::Message;
+type Sender = mpsc::UnboundedSender<SystemMessages>;
 
-#[derive(Default)]
-struct Cache {
-    clients: HashMap<PlayerId, PlayerData>,
+#[derive(Default, Clone)]
+struct Manager {
+    inner: Arc<Mutex<HashMap<PlayerId, Sender>>>,
+    id_counter: Arc<AtomicUsize>,
 }
 
-impl Cache {
-    pub fn create_player(&mut self) -> PlayerId {
-        let id = PlayerId::random();
-        self.clients.insert(
-            id,
-            PlayerData {
-                id,
-                position: Coordinate::default(),
-            },
-        );
-        id
+impl Manager {
+    pub fn new() -> Self {
+        Self {
+            inner: Arc::new(Mutex::new(HashMap::new())),
+            id_counter: Arc::new(AtomicUsize::new(1)),
+        }
     }
 
-    pub fn get(&self, id: &PlayerId) -> Option<&PlayerData> {
-        self.clients.get(id)
+    async fn broadcast(&self, message: SystemMessages) {
+        for sender in self.inner.lock().await.values() {
+            let _ = sender.send(message.clone());
+        }
+    }
+
+    async fn broadcast_except(&self, id: PlayerId, message: SystemMessages) {
+        for (client_id, sender) in self.inner.lock().await.iter() {
+            if *client_id != id {
+                let _ = sender.send(message.clone());
+            }
+        }
+    }
+
+    async fn broadcast_to(&self, id: PlayerId, message: SystemMessages) {
+        if let Some(sender) = self.inner.lock().await.get(&id) {
+            let _ = sender.send(message);
+        }
+    }
+
+    async fn add(&self, id: PlayerId, sender: Sender) {
+        self.inner.lock().await.insert(id, sender);
+    }
+
+    async fn remove(&self, id: PlayerId) {
+        self.inner.lock().await.remove(&id);
+    }
+}
+
+#[derive(Clone)]
+struct ScopedManager {
+    id: PlayerId,
+    inner: Manager
+}
+
+impl ScopedManager {
+    pub fn new(id: PlayerId, parent: Manager) -> Self {
+        Self { id, inner: parent }
+    }
+
+    pub async fn reply(&self, message: SystemMessages) {
+        self.inner.broadcast_to(self.id, message).await
+    }
+
+    pub async fn broadcast(&self, message: SystemMessages) {
+        self.inner.broadcast_except(self.id, message).await
+    }
+
+    async fn remove(&self, id: PlayerId) {
+        self.inner.remove(id).await
     }
 }
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
-    let try_socket = TcpListener::bind(&"127.0.0.1:9001").await;
-    let listener = try_socket.expect("Failed to bind");
-    let state = Arc::new(Mutex::new(Cache::default()));
+    let listener = TcpListener::bind("127.0.0.1:9001").await?;
+    let manager = Manager::new();
 
     while let Ok((stream, _)) = listener.accept().await {
-        let player_id = { state.lock().await.create_player() };
+        let websocket = accept_async(stream).await?;
+        let (mut websocket_writer, mut websocket_reader) = websocket.split();
 
-        tokio::spawn(accept_connection(stream, player_id, state.clone()));
+        let (sender, mut receiver) = mpsc::unbounded_channel();
+        let player_id = PlayerId::random();
+
+        manager.add(player_id, sender.clone()).await;
+
+        println!("client {:?} connected", player_id);
+
+        // Task: send to client
+        let write_task = tokio::spawn(async move {
+            while let Some(message) = receiver.recv().await {
+                if websocket_writer.send(message.try_into().unwrap()).await.is_err() {
+                    break;
+                }
+            }
+        });
+
+        // Task: receive from client
+        let manager_clone = manager.clone();
+        let scoped = ScopedManager::new(player_id, manager_clone.clone());
+        let scoped_clone = scoped.clone();
+
+        let read_task = tokio::spawn(async move {
+            while let Some(Ok(message)) = websocket_reader.next().await {
+                if let Ok(message) = SystemMessages::try_from(message) {
+                    println!("{:?} -> {:?}", player_id, message);
+                    handle_player_communication(scoped_clone.clone(), message).await;
+                }
+            }
+
+            // Cleanup on disconnect
+            println!("Client {:?} disconnected", player_id);
+            scoped_clone.remove(player_id).await;
+        });
+
+        on_player_connect(scoped.clone()).await;
+
+        // Auto-cleanup when either task ends
+        tokio::spawn(async move {
+            let _ = tokio::join!(write_task, read_task);
+        });
     }
 
     Ok(())
 }
 
-async fn accept_connection(stream: TcpStream, player_id: PlayerId, state: Arc<Mutex<Cache>>) {
-    let addr = stream
-        .peer_addr()
-        .expect("connected streams should have a peer address");
-    println!("Peer address: {}", addr);
-
-    let ws_stream = accept_async(stream)
-        .await
-        .expect("WebSocket handshake failed");
-
-    println!("New WebSocket connection: {}", addr);
-
-    let (mut write, mut read) = ws_stream.split();
-
-    let welcome_message = {
-        SystemMessages::Welcome {
-            data: *state.lock().await.get(&player_id).unwrap(),
+async fn handle_player_communication(manager: ScopedManager, message: SystemMessages) {
+    match message {
+        SystemMessages::Ping => manager.reply(SystemMessages::Pong).await,
+        SystemMessages::Pong => {}
+        SystemMessages::Connected { .. } => {}
+        SystemMessages::Welcome { .. } => {}
+        SystemMessages::PlayerPosition { coordinate } => {
+            manager.broadcast(SystemMessages::EnemyPosition { id: manager.id,  coordinate }).await
         }
-    };
-
-    let encoded = bincode::encode_to_vec(welcome_message, config::standard()).unwrap();
-    let _ = write.send(Message::binary(encoded)).await;
-
-    let player_spawn_message = {
-        SystemMessages::PlayerSpawn {
-            data: *state.lock().await.get(&player_id).unwrap(),
-        }
-    };
-
-    let encoded = bincode::encode_to_vec(player_spawn_message, config::standard()).unwrap();
-    let _ = write.send(Message::binary(encoded)).await;
-
-    while let Some(Ok(message)) = read.next().await {
-        if message.is_binary() {
-            let config = config::standard();
-            let (message, _) = bincode::decode_from_slice::<SystemMessages, _>(
-                message.into_data().as_ref(),
-                config,
-            ).unwrap();
-
-            println!("{:?} -> {:?}", player_id, message);
-
-            match message {
-                SystemMessages::Connected { id } => {
-                    println!("player_connected: {:?}", id);
-                    // state.lock().await.clients.insert(id, PlayerData::default());
-                }
-                SystemMessages::PlayerPosition { .. } => {}
-                SystemMessages::PlayerSpawn { .. } => {}
-                SystemMessages::Welcome { .. } => {}
-                SystemMessages::Ping => {
-                    let _ = write.send(SystemMessages::Pong.into()).await;
-                }
-                SystemMessages::Pong => {
-                    let _ = write.send(SystemMessages::Ping.into()).await;
-                }
-            }
-        }
+        SystemMessages::MainPlayerSpawn { .. } => {}
+        SystemMessages::EnemyPlayerSpawn { .. } => {}
+        _ => {}
     }
+}
 
-    println!("Connection closed: {}", addr);
+async fn on_player_connect(scoped: ScopedManager) {
+    let data = PlayerData {
+        id: PlayerId::random(),
+        position: Coordinate::default()
+    };
+
+    // Spawn the main player
+    let player = scoped.reply(SystemMessages::MainPlayerSpawn { data });
+
+    // Then notify everyone that there is a new boss in town
+    let enemy = scoped.broadcast(SystemMessages::EnemyPlayerSpawn { data });
+
+    tokio::join!(player, enemy);
 }

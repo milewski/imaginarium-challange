@@ -1,11 +1,8 @@
 use std::time::Duration;
 
-use crate::fox_plugin::ROBOT_GLB_PATH;
-use crate::player::{Player, PlayerAnimation};
-use crate::tokens::Token;
 use bevy::animation::{AnimationClip, AnimationPlayer};
 use bevy::app::{App, Startup, Update};
-use bevy::asset::{AssetServer, Assets, Handle};
+use bevy::asset::{Assets, AssetServer, Handle};
 use bevy::ecs::bundle::DynamicBundle;
 use bevy::gltf::GltfAssetLabel;
 use bevy::input::ButtonInput;
@@ -16,23 +13,35 @@ use bevy::prelude::*;
 use bevy::scene::SceneInstanceReady;
 use bevy_rapier2d::geometry::Collider;
 use bevy_sprite3d::Sprite3d;
-use shared::PlayerId;
+
+use shared::{PlayerData, PlayerId, SystemMessages};
+
+use crate::fox_plugin::ROBOT_GLB_PATH;
+use crate::network::{SendWebSocketMessage, WebSocketMessageReceived};
+use crate::player::{Player, PlayerAnimation};
+use crate::tokens::Token;
 
 pub struct RobotPlugin;
 
 #[derive(Component, Debug)]
 pub struct Robot {
-    id: PlayerId,
     target: Option<Vec3>,
     animation: Option<PlayerAnimation>,
+}
+
+#[derive(Component, Debug, Copy, Clone)]
+enum PlayerKind {
+    MainPlayer(PlayerData),
+    Enemy(PlayerData)
 }
 
 impl Plugin for RobotPlugin {
     fn build(&self, app: &mut App) {
         // app.add_systems(Startup, initialize_animations_system);
-        app.add_systems(Startup, spawn_player_system);
+        app.add_systems(Update, listen_to_player_spawn_events_system);
         // app.add_systems(Update, start_robot_idle_animation);
         app.add_systems(Update, robots_movement_system);
+        app.add_systems(Update, listen_for_enemy_movement_system);
         app.add_systems(Update, move_robot_animation_system);
         // app.add_systems(Update, robot_animation_movement_system);
         app.add_systems(
@@ -87,26 +96,34 @@ fn initialize_animations_observer(
     }
 }
 
-fn spawn_player_system(
+fn listen_to_player_spawn_events_system(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
     mut graphs: ResMut<Assets<AnimationGraph>>,
+    mut events: EventReader<WebSocketMessageReceived>
 ) {
-    // let command = commands.spawn((
-    //     SceneRoot(asset_server.load(GltfAssetLabel::Scene(0).from_asset(ROBOT_GLB_PATH))),
-    //     Transform {
-    //         scale: Vec3::splat(0.5),
-    //         ..default()
-    //     },
-    //     Player::default(),
-    //     Robot {
-    //         id: PlayerId::random(),
-    //         animation: None,
-    //         target: None,
-    //     },
-    // ));
-    let (graph, index) =
-        AnimationGraph::from_clips(PlayerAnimation::clips().map(|clip| asset_server.load(clip)));
+    for event in events.read() {
+        match event.0 {
+            SystemMessages::EnemyPlayerSpawn { data } => {
+                spawn_player(&asset_server, &mut commands, &mut graphs, PlayerKind::Enemy(data))
+            }
+            SystemMessages::MainPlayerSpawn { data } => {
+                spawn_player(&asset_server, &mut commands, &mut graphs, PlayerKind::MainPlayer(data))
+            },
+            _ => continue
+        }
+    }
+}
+
+fn spawn_player(
+    asset_server: &Res<AssetServer>,
+    commands: &mut Commands,
+    graphs: &mut ResMut<Assets<AnimationGraph>>,
+    player_kind: PlayerKind
+) {
+    let (graph, index) = AnimationGraph::from_clips(
+        PlayerAnimation::clips().map(|clip| asset_server.load(clip))
+    );
 
     let animation_to_play = Animations {
         animations: index,
@@ -116,7 +133,6 @@ fn spawn_player_system(
     let mesh = SceneRoot(asset_server.load(GltfAssetLabel::Scene(0).from_asset(ROBOT_GLB_PATH)));
 
     let robot = Robot {
-        id: PlayerId::random(),
         animation: None,
         target: None,
     };
@@ -127,27 +143,42 @@ fn spawn_player_system(
     };
 
     commands
-        .spawn((animation_to_play, robot, transform, mesh, Player::default()))
+        .spawn((animation_to_play, robot, transform, mesh, player_kind))
+        .insert_if(Player::default(), || match player_kind {
+            PlayerKind::MainPlayer(_) => true,
+            PlayerKind::Enemy(_) => false
+        })
         .observe(initialize_animations_observer);
-
-    // commands.spawn((
-    //     SceneRoot(asset_server.load(GltfAssetLabel::Scene(0).from_asset(ROBOT_GLB_PATH))),
-    //     Transform {
-    //         scale: Vec3::splat(0.5),
-    //         translation: Vec3::new(5.0, 0.0, 5.0),
-    //         ..default()
-    //     },
-    //     Robot {
-    //         id: PlayerId::random(),
-    //         animation: None,
-    //         target: None,
-    //     },
-    // ));
 }
 
 /// Only run when user click and there is a player spawn in the world
 fn should_run(mouse: Res<ButtonInput<MouseButton>>, query: Query<(), With<Player>>) -> bool {
     mouse.just_pressed(MouseButton::Left) && query.is_empty() == false
+}
+
+fn listen_for_enemy_movement_system(
+    mut robots: Query<(&PlayerKind, &mut Robot)>,
+    mut events: EventReader<WebSocketMessageReceived>
+) {
+    for event in events.read() {
+        match event.0 {
+            SystemMessages::EnemyPosition { id, coordinate } => {
+                info!("got here {:?}", id);
+                for (kind, mut robot) in &mut robots {
+                    match *kind {
+                        PlayerKind::Enemy(mut data) => {
+                            info!("{:?} {:?} {:?}", data.id, id, data.id == id);
+                            if data.id == id {
+                                robot.target = Some(coordinate.to_vec3())
+                            }
+                        }
+                        _ => {}
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
 }
 
 fn robots_movement_system(mut robots: Query<(&mut Robot, &mut Transform)>, time: Res<Time>) {
@@ -192,6 +223,7 @@ fn calculate_player_movement_target_system(
     mut obstacles_query: Query<(&mut Sprite3d, &Transform), Without<Token>>,
     windows: Query<&Window>,
     camera: Query<(&Camera, &GlobalTransform), With<Projection>>,
+    mut event: EventWriter<SendWebSocketMessage>
 ) {
     let (mut robot, player_transform) = query.single_mut();
     let (camera, camera_transform) = camera.single();
@@ -221,6 +253,8 @@ fn calculate_player_movement_target_system(
                     &intersection_point,
                     &obstacles,
                 ));
+
+                event.send(SendWebSocketMessage(SystemMessages::PlayerPosition { coordinate: intersection_point.into() }));
 
                 info!("target -> {:?}", intersection_point);
             }
