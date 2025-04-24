@@ -1,5 +1,12 @@
 use bevy::math::Vec3;
 use bevy::prelude::{Component, Resource};
+use bincode::{config, error};
+use bincode::config::standard;
+use bincode::error::DecodeError;
+#[cfg(target_arch = "wasm32")]
+use tokio_tungstenite_wasm::Message;
+#[cfg(not(target_arch = "wasm32"))]
+use tungstenite::Message;
 
 #[derive(Debug, Default, Copy, Clone, bincode::Encode, bincode::Decode)]
 pub struct Coordinate {
@@ -28,8 +35,10 @@ pub struct PlayerData {
     pub position: Coordinate,
 }
 
-#[derive(Debug, bincode::Encode, bincode::Decode)]
+#[derive(Debug, Clone, bincode::Encode, bincode::Decode)]
 pub enum SystemMessages {
+    Ping,
+    Pong,
     Connected {
         id: PlayerId,
     },
@@ -43,4 +52,21 @@ pub enum SystemMessages {
     PlayerSpawn {
         data: PlayerData,
     },
+}
+
+impl TryFrom<Message> for SystemMessages {
+    type Error = DecodeError;
+
+    fn try_from(message: Message) -> Result<Self, Self::Error> {
+        let (decoded, _) = bincode::decode_from_slice(message.into_data().as_ref(), standard())?;
+        Ok(decoded)
+    }
+}
+
+impl Into<Message> for SystemMessages {
+    fn into(self) -> Message {
+        Message::Binary(
+            bincode::encode_to_vec(self, standard()).unwrap().into()
+        )
+    }
 }

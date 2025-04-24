@@ -31,7 +31,6 @@ impl Plugin for RobotPlugin {
     fn build(&self, app: &mut App) {
         // app.add_systems(Startup, initialize_animations_system);
         app.add_systems(Startup, spawn_player_system);
-        // app.add_systems(Update, debug_components);
         // app.add_systems(Update, start_robot_idle_animation);
         app.add_systems(Update, robots_movement_system);
         app.add_systems(Update, move_robot_animation_system);
@@ -40,18 +39,6 @@ impl Plugin for RobotPlugin {
             Update,
             calculate_player_movement_target_system.run_if(should_run),
         );
-    }
-}
-
-fn debug_components(world: &World) {
-    for entity in world.iter_entities() {
-        info!("Entity: {:?}", entity.id());
-
-        for component_id in entity.archetype().components() {
-            if let Some(info) = world.components().get_info(component_id) {
-                info!("  - {:?}", info.name());
-            }
-        }
     }
 }
 
@@ -65,13 +52,7 @@ fn move_robot_animation_system(
             for child in children.iter_descendants(entity) {
                 if let Ok((mut player, mut transitions)) = query.get_mut(child) {
                     if player.is_playing_animation(animation.to_animation()) == false {
-                        transitions
-                            .play(
-                                &mut player,
-                                animation.to_animation(),
-                                Duration::from_millis(250),
-                            )
-                            .repeat();
+                        transitions.play(&mut player, animation.to_animation(), Duration::from_millis(250)).repeat();
                     }
 
                     robot.animation = None;

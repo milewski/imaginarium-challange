@@ -1,13 +1,17 @@
-use bincode::config;
-use futures_util::{SinkExt, StreamExt};
-use shared::{Coordinate, PlayerData, PlayerId, SystemMessages};
 use std::collections::HashMap;
 use std::error::Error;
 use std::sync::Arc;
+
+use bincode::config;
+use futures_util::{SinkExt, StreamExt};
 use tokio::net::{TcpListener, TcpStream};
 use tokio::sync::Mutex;
 use tokio_tungstenite::accept_async;
 use tokio_tungstenite::tungstenite::Message;
+
+use shared::{Coordinate, PlayerData, PlayerId, SystemMessages};
+
+// use tokio_tungstenite_wasm::Message;
 
 #[derive(Default)]
 struct Cache {
@@ -56,6 +60,7 @@ async fn accept_connection(stream: TcpStream, player_id: PlayerId, state: Arc<Mu
     let ws_stream = accept_async(stream)
         .await
         .expect("WebSocket handshake failed");
+
     println!("New WebSocket connection: {}", addr);
 
     let (mut write, mut read) = ws_stream.split();
@@ -84,8 +89,9 @@ async fn accept_connection(stream: TcpStream, player_id: PlayerId, state: Arc<Mu
             let (message, _) = bincode::decode_from_slice::<SystemMessages, _>(
                 message.into_data().as_ref(),
                 config,
-            )
-            .unwrap();
+            ).unwrap();
+
+            println!("{:?} -> {:?}", player_id, message);
 
             match message {
                 SystemMessages::Connected { id } => {
@@ -95,6 +101,12 @@ async fn accept_connection(stream: TcpStream, player_id: PlayerId, state: Arc<Mu
                 SystemMessages::PlayerPosition { .. } => {}
                 SystemMessages::PlayerSpawn { .. } => {}
                 SystemMessages::Welcome { .. } => {}
+                SystemMessages::Ping => {
+                    let _ = write.send(SystemMessages::Pong.into()).await;
+                }
+                SystemMessages::Pong => {
+                    let _ = write.send(SystemMessages::Ping.into()).await;
+                }
             }
         }
     }

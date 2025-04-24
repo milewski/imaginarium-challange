@@ -118,7 +118,7 @@ fn player_system(
     mouse: Res<ButtonInput<MouseButton>>,
     windows: Query<&Window>,
     camera_query: Query<(&Camera, &GlobalTransform), With<Projection>>,
-    mut socket: ResMut<crate::network::WebsocketResource>,
+    // mut socket: ResMut<crate::network::WebsocketResource>,
 ) {
     if !mouse.just_pressed(MouseButton::Left) {
         return;

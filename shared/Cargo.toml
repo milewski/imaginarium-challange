@@ -6,9 +6,16 @@ edition = "2024"
 [lib]
 name = "shared"
 
+[features]
+default = []
+native = ["tokio-tungstenite", "tungstenite"]
+wasm = ["tokio-tungstenite-wasm"]
+
 [dependencies]
 bincode = { version = "2.0.1", features = ["derive"] }
 serde = { version = "1.0.219", features = ["derive"] }
 fastrand = { version = "2.3.0", features = ["js"] }
 bevy = { version = "0.15.3" }
-#bevy_simplenet = { version = "0.15.2", features = ["client", "bevy"] }
+tokio-tungstenite-wasm = { version = "0.5.0", features = ["rustls-tls-native-roots"], optional = true }
+tokio-tungstenite = { version = "0.26.2", optional = true }
+tungstenite = { version = "0.26.2", optional = true }
