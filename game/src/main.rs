@@ -1,31 +1,27 @@
 #![allow(warnings)]
 mod button_plugin;
-mod fox_plugin;
 mod mouse_plugin;
 mod network;
-mod player;
 mod robot;
 mod tokens;
 
 use crate::button_plugin::ButtonPlugin;
-use crate::fox_plugin::FoxPlugin;
 use crate::mouse_plugin::{Draggable, MousePlugin};
 use crate::network::NetworkPlugin;
-use crate::player::{Player, PlayerPlugin};
 use crate::robot::RobotPlugin;
 use crate::tokens::TokensPlugin;
 use bevy::color::palettes::tailwind::{GRAY_100, GRAY_200};
+use bevy::diagnostic::FrameTimeDiagnosticsPlugin;
 use bevy::prelude::*;
 use bevy::render::camera::ScalingMode;
 use bevy::render::mesh::skinning::SkinnedMesh;
 use bevy_infinite_grid::{InfiniteGridBundle, InfiniteGridPlugin, InfiniteGridSettings};
-use bevy_mod_skinned_aabb::SkinnedAabbPlugin;
 use bevy_mod_skinned_aabb::debug::SkinnedAabbDebugPlugin;
+use bevy_mod_skinned_aabb::SkinnedAabbPlugin;
 use bevy_sprite3d::{Sprite3dBuilder, Sprite3dParams, Sprite3dPlugin};
 use num_traits::{Float, FloatConst};
 use std::any::Any;
 use std::f32::consts::PI;
-use bevy::diagnostic::FrameTimeDiagnosticsPlugin;
 
 #[derive(Resource, Default)]
 struct AssetsCache(Vec<Handle<Image>>);
@@ -44,7 +40,6 @@ fn main() {
         .add_plugins(NetworkPlugin)
         .add_plugins((DefaultPlugins, InfiniteGridPlugin))
         .add_plugins(CameraController)
-        .add_plugins(PlayerPlugin)
         .add_plugins((ButtonPlugin, TokensPlugin))
         .add_plugins(Sprite3dPlugin)
         // .add_plugins(FoxPlugin)

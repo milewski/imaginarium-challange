@@ -2,7 +2,7 @@ use std::time::Duration;
 
 use bevy::animation::{AnimationClip, AnimationPlayer};
 use bevy::app::{App, Startup, Update};
-use bevy::asset::{AssetServer, Assets, Handle};
+use bevy::asset::{AssetPath, AssetServer, Assets, Handle};
 use bevy::ecs::bundle::DynamicBundle;
 use bevy::gltf::GltfAssetLabel;
 use bevy::input::ButtonInput;
@@ -16,10 +16,10 @@ use bevy_sprite3d::Sprite3d;
 
 use shared::{PlayerData, PlayerId, SystemMessages};
 
-use crate::fox_plugin::ROBOT_GLB_PATH;
 use crate::network::{SendWebSocketMessage, WebSocketMessageReceived};
-use crate::player::{Player, PlayerAnimation};
 use crate::tokens::Token;
+
+pub const ROBOT_GLB_PATH: &str = "RobotExpressive.glb";
 
 pub struct RobotPlugin;
 
@@ -108,7 +108,7 @@ fn initialize_animations_observer(
                 let mut transitions = AnimationTransitions::new();
 
                 transitions
-                    .play(&mut player, animations.animations[0], Duration::ZERO)
+                    .play(&mut player, animations.index[0], Duration::ZERO)
                     .repeat();
 
                 commands
@@ -149,8 +149,8 @@ fn spawn_player(
         PlayerAnimation::clips().map(|clip| asset_server.load(clip))
     );
 
-    let animation_to_play = Animations {
-        animations: index,
+    let animations = Animations {
+        index,
         graph: graphs.add(graph),
     };
 
@@ -168,7 +168,7 @@ fn spawn_player(
     };
 
     commands
-        .spawn((animation_to_play, robot, transform, mesh, player_kind))
+        .spawn((animations, robot, transform, mesh, player_kind))
         .insert_if(Player::default(), || match player_kind {
             PlayerKind::MainPlayer(_) => true,
             PlayerKind::Enemy(_) => false
@@ -302,7 +302,7 @@ fn calculate_player_movement_target_system(
 
 #[derive(Component)]
 struct Animations {
-    animations: Vec<AnimationNodeIndex>,
+    index: Vec<AnimationNodeIndex>,
     graph: Handle<AnimationGraph>,
 }
 
@@ -374,3 +374,39 @@ fn find_closest_clear_path(start: &Vec3, end: &Vec3, elements: &Vec<&Vec3>) -> V
         end.clone()
     }
 }
+
+#[derive(Component, Default, Debug)]
+pub struct Player {}
+
+#[derive(Default, Debug, Clone, Copy, PartialEq)]
+pub enum PlayerAnimation {
+    #[default]
+    Idle = 2,
+    Jumping = 3,
+    Running = 6,
+    Standing = 8,
+    Walking = 10,
+}
+
+impl PlayerAnimation {
+    pub fn clips() -> [AssetPath<'static>; 5] {
+        [
+            GltfAssetLabel::Animation(Self::Idle as usize).from_asset(ROBOT_GLB_PATH),
+            GltfAssetLabel::Animation(Self::Jumping as usize).from_asset(ROBOT_GLB_PATH),
+            GltfAssetLabel::Animation(Self::Running as usize).from_asset(ROBOT_GLB_PATH),
+            GltfAssetLabel::Animation(Self::Walking as usize).from_asset(ROBOT_GLB_PATH),
+            GltfAssetLabel::Animation(Self::Standing as usize).from_asset(ROBOT_GLB_PATH),
+        ]
+    }
+
+    pub fn to_index(&self) -> AnimationNodeIndex {
+        match self {
+            PlayerAnimation::Idle => 1.into(),
+            PlayerAnimation::Jumping => 2.into(),
+            PlayerAnimation::Running => 3.into(),
+            PlayerAnimation::Walking => 4.into(),
+            PlayerAnimation::Standing => 5.into(),
+        }
+    }
+}
+

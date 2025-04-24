@@ -1,6 +1,5 @@
 use bevy::math::Vec3;
-use bevy::prelude::{Component, Resource};
-use bincode::{config, error};
+use bevy::prelude::Component;
 use bincode::config::standard;
 use bincode::error::DecodeError;
 #[cfg(target_arch = "wasm32")]

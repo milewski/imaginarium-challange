@@ -1,12 +1,11 @@
+use crate::robot::Player;
 use bevy::app::{App, Startup, Update};
 use bevy::asset::{AssetServer, Handle};
 use bevy::hierarchy::ChildBuild;
 use bevy::image::Image;
-use bevy::log::info;
 use bevy::math::{Quat, Vec2, Vec3};
-use bevy::prelude::{AlphaMode, Commands, Component, IntoSystemConfigs, Local, Plugin, Query, Res, Resource, Transform, With, default, resource_exists, Entity};
-use bevy_sprite3d::{Sprite3d, Sprite3dBuilder, Sprite3dParams};
-use crate::player::Player;
+use bevy::prelude::{default, resource_exists, AlphaMode, Commands, Component, Entity, IntoSystemConfigs, Local, Plugin, Query, Res, Resource, Transform, With};
+use bevy_sprite3d::{Sprite3dBuilder, Sprite3dParams};
 
 pub struct TokensPlugin;
 
@@ -57,28 +56,16 @@ fn setup(
 
 fn pickup_token_system(
     mut commands: Commands,
-    query: Query<(Entity, &Sprite3d, &Transform), With<Token>>, // All tokens
-    player_query: Query<(&Player, &Transform)>,
+    query: Query<(Entity, &Transform), With<Token>>, // All tokens
+    player_query: Query<&Transform, With<Player>>,
 ) {
-    for (player, player_transform) in player_query.iter() {
-        // Get player position
-        // let player_transform = player_query.single().1; // Assuming there's only one player
-
-        for (token_entity, sprite, token_transform) in query.iter() {
-            // Calculate distance between player and token
+    for player_transform in player_query.iter() {
+        for (token_entity, token_transform) in query.iter() {
             let distance = player_transform.translation.distance(token_transform.translation);
-
-            // Set a pickup radius (e.g., 1.0 units)
             let pickup_radius = 2.0;
 
             if distance < pickup_radius {
-                // Player has crossed the token's position, so pick it up
-                println!("Token picked up at: {:?}", token_transform.translation);
-
-                // Remove token from the world (or mark as picked up)
-                commands.entity(token_entity).despawn(); // Or use .despawn_recursive() if you need to clear children too
-
-                // Optionally, update the player’s score or inventory here
+                commands.entity(token_entity).despawn();
             }
         }
     }
@@ -101,7 +88,7 @@ fn create_token(
             double_sided: true,
             ..default()
         }
-        .bundle(sprite_params),
+            .bundle(sprite_params),
         Transform {
             translation: position,
             rotation: Quat::from_rotation_y(45f32.to_radians()),

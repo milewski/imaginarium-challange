@@ -1,9 +1,9 @@
-use crate::player::Player;
 use crate::{AssetsCache, get_random_between};
 use bevy::app::{App, Plugin, Update};
 use bevy::math::Vec2;
 use bevy::prelude::*;
 use bevy_sprite3d::{Sprite3dBuilder, Sprite3dParams};
+use crate::robot::Player;
 
 pub struct ButtonPlugin;
 
@@ -58,9 +58,9 @@ fn button_system(
                         .bundle(&mut sprite_params),
                         Transform {
                             translation: Vec3::new(
-                                player.current_position.0,
                                 0.0,
-                                player.current_position.1,
+                                0.0,
+                                0.0,
                             ),
                             rotation: Quat::from_rotation_y(45f32.to_radians()),
                             ..default()
