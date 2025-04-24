@@ -2,7 +2,7 @@ use std::time::Duration;
 
 use bevy::animation::{AnimationClip, AnimationPlayer};
 use bevy::app::{App, Startup, Update};
-use bevy::asset::{Assets, AssetServer, Handle};
+use bevy::asset::{AssetServer, Assets, Handle};
 use bevy::ecs::bundle::DynamicBundle;
 use bevy::gltf::GltfAssetLabel;
 use bevy::input::ButtonInput;
@@ -23,22 +23,24 @@ use crate::tokens::Token;
 
 pub struct RobotPlugin;
 
-#[derive(Component, Debug)]
+#[derive(Component, Default, Debug)]
 pub struct Robot {
     target: Option<Vec3>,
+    animation_timer: Option<Timer>,
     animation: Option<PlayerAnimation>,
 }
 
 #[derive(Component, Debug, Copy, Clone)]
 enum PlayerKind {
     MainPlayer(PlayerData),
-    Enemy(PlayerData)
+    Enemy(PlayerData),
 }
 
 impl Plugin for RobotPlugin {
     fn build(&self, app: &mut App) {
         // app.add_systems(Startup, initialize_animations_system);
         app.add_systems(Update, listen_to_player_spawn_events_system);
+        app.add_systems(Update, remove_disconnected_players_system);
         // app.add_systems(Update, start_robot_idle_animation);
         app.add_systems(Update, robots_movement_system);
         app.add_systems(Update, listen_for_enemy_movement_system);
@@ -52,19 +54,41 @@ impl Plugin for RobotPlugin {
 }
 
 fn move_robot_animation_system(
+    time: Res<Time>,
     children: Query<&Children>,
     mut robots: Query<(Entity, &mut Robot)>,
     mut query: Query<(&mut AnimationPlayer, &mut AnimationTransitions)>,
 ) {
-    for (entity, mut robot) in robots.iter_mut() {
+    'root: for (entity, mut robot) in robots.iter_mut() {
         if let Some(animation) = robot.animation {
             for child in children.iter_descendants(entity) {
                 if let Ok((mut player, mut transitions)) = query.get_mut(child) {
-                    if player.is_playing_animation(animation.to_animation()) == false {
-                        transitions.play(&mut player, animation.to_animation(), Duration::from_millis(250)).repeat();
+
+                    // Hack to reset the pose of the model... no time to figure out what's wrong with it
+                    if animation == PlayerAnimation::Idle && robot.animation_timer.is_none() {
+                        transitions.play(
+                            &mut player,
+                            PlayerAnimation::Jumping.to_index(),
+                            Duration::from_millis(250),
+                        );
+
+                        robot.animation_timer = Some(Timer::from_seconds(0.708, TimerMode::Once));
                     }
 
-                    robot.animation = None;
+                    if let Some(timer) = robot.animation_timer.as_mut() {
+                        timer.tick(time.delta());
+
+                        if !timer.finished() {
+                            continue 'root;
+                        }
+
+                        robot.animation_timer = None;
+                        robot.animation = None;
+                    }
+
+                    if player.is_playing_animation(animation.to_index()) == false {
+                        transitions.play(&mut player, animation.to_index(), Duration::from_millis(250)).repeat();
+                    }
                 }
             }
         }
@@ -100,7 +124,7 @@ fn listen_to_player_spawn_events_system(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
     mut graphs: ResMut<Assets<AnimationGraph>>,
-    mut events: EventReader<WebSocketMessageReceived>
+    mut events: EventReader<WebSocketMessageReceived>,
 ) {
     for event in events.read() {
         match event.0 {
@@ -109,7 +133,7 @@ fn listen_to_player_spawn_events_system(
             }
             SystemMessages::MainPlayerSpawn { data } => {
                 spawn_player(&asset_server, &mut commands, &mut graphs, PlayerKind::MainPlayer(data))
-            },
+            }
             _ => continue
         }
     }
@@ -119,7 +143,7 @@ fn spawn_player(
     asset_server: &Res<AssetServer>,
     commands: &mut Commands,
     graphs: &mut ResMut<Assets<AnimationGraph>>,
-    player_kind: PlayerKind
+    player_kind: PlayerKind,
 ) {
     let (graph, index) = AnimationGraph::from_clips(
         PlayerAnimation::clips().map(|clip| asset_server.load(clip))
@@ -132,13 +156,14 @@ fn spawn_player(
 
     let mesh = SceneRoot(asset_server.load(GltfAssetLabel::Scene(0).from_asset(ROBOT_GLB_PATH)));
 
-    let robot = Robot {
-        animation: None,
-        target: None,
-    };
+    let robot = Robot::default();
 
     let transform = Transform {
         scale: Vec3::splat(0.5),
+        translation: match player_kind {
+            PlayerKind::MainPlayer(data) => data.position.to_vec3(),
+            PlayerKind::Enemy(data) => data.position.to_vec3(),
+        },
         ..default()
     };
 
@@ -156,27 +181,38 @@ fn should_run(mouse: Res<ButtonInput<MouseButton>>, query: Query<(), With<Player
     mouse.just_pressed(MouseButton::Left) && query.is_empty() == false
 }
 
-fn listen_for_enemy_movement_system(
-    mut robots: Query<(&PlayerKind, &mut Robot)>,
-    mut events: EventReader<WebSocketMessageReceived>
+fn remove_disconnected_players_system(
+    mut commands: Commands,
+    mut robots: Query<(Entity, &PlayerKind)>,
+    mut events: EventReader<WebSocketMessageReceived>,
 ) {
     for event in events.read() {
-        match event.0 {
-            SystemMessages::EnemyPosition { id, coordinate } => {
-                info!("got here {:?}", id);
-                for (kind, mut robot) in &mut robots {
-                    match *kind {
-                        PlayerKind::Enemy(mut data) => {
-                            info!("{:?} {:?} {:?}", data.id, id, data.id == id);
-                            if data.id == id {
-                                robot.target = Some(coordinate.to_vec3())
-                            }
-                        }
-                        _ => {}
+        if let SystemMessages::EnemyDisconnected { id } = event.0 {
+            for (entity, kind) in &mut robots {
+                if let PlayerKind::Enemy(data) = kind {
+                    if data.id == id {
+                        commands.entity(entity).despawn_recursive();
                     }
                 }
             }
-            _ => {}
+        }
+    }
+}
+
+fn listen_for_enemy_movement_system(
+    mut robots: Query<(&PlayerKind, &mut Robot)>,
+    mut events: EventReader<WebSocketMessageReceived>,
+) {
+    for event in events.read() {
+        if let SystemMessages::EnemyPosition { id, coordinate } = event.0 {
+            for (kind, mut robot) in &mut robots {
+                if let PlayerKind::Enemy(data) = kind {
+                    if data.id == id {
+                        robot.animation = Some(PlayerAnimation::Running);
+                        robot.target = Some(coordinate.to_vec3())
+                    }
+                }
+            }
         }
     }
 }
@@ -223,7 +259,7 @@ fn calculate_player_movement_target_system(
     mut obstacles_query: Query<(&mut Sprite3d, &Transform), Without<Token>>,
     windows: Query<&Window>,
     camera: Query<(&Camera, &GlobalTransform), With<Projection>>,
-    mut event: EventWriter<SendWebSocketMessage>
+    mut event: EventWriter<SendWebSocketMessage>,
 ) {
     let (mut robot, player_transform) = query.single_mut();
     let (camera, camera_transform) = camera.single();
@@ -247,14 +283,16 @@ fn calculate_player_movement_target_system(
                     .map(|(_, transform)| &transform.translation)
                     .collect::<Vec<_>>();
 
-                robot.animation = Some(PlayerAnimation::Running);
-                robot.target = Some(find_closest_clear_path(
+                let movement_target = find_closest_clear_path(
                     &player_transform.translation,
                     &intersection_point,
                     &obstacles,
-                ));
+                );
 
-                event.send(SendWebSocketMessage(SystemMessages::PlayerPosition { coordinate: intersection_point.into() }));
+                robot.animation = Some(PlayerAnimation::Running);
+                robot.target = Some(movement_target);
+
+                event.send(SendWebSocketMessage(SystemMessages::PlayerPosition { coordinate: movement_target.into() }));
 
                 info!("target -> {:?}", intersection_point);
             }

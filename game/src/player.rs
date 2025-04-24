@@ -39,7 +39,7 @@ impl PlayerAnimation {
         ]
     }
 
-    pub fn to_animation(&self) -> AnimationNodeIndex {
+    pub fn to_index(&self) -> AnimationNodeIndex {
         match self {
             PlayerAnimation::Idle => 1.into(),
             PlayerAnimation::Jumping => 2.into(),
@@ -62,8 +62,6 @@ pub struct PlayerPlugin;
 impl Plugin for PlayerPlugin {
     fn build(&self, app: &mut App) {
         // app.add_systems(Update, player_system);
-        app .add_systems(Update, player_movement_system);
-
         // app.add_systems(Update, spawn_player);
     }
 }
@@ -215,51 +213,5 @@ pub fn spawn_player(
             },
             Player::default(),
         ));
-    }
-}
-
-fn player_movement_system(
-    mut query: Query<(&mut Transform, &mut Player)>,
-    time: Res<Time>,
-    collision_query: Query<&Collider>, // Add a query for colliders
-) {
-    if let Ok((mut transform, mut player)) = query.get_single_mut() {
-        // println!("{:?}", get_grid_coordinates(&transform));
-
-        if let Some((target_pos, rotation)) = player.path {
-            let current = transform.translation;
-            let current_rotation = transform.rotation;
-            let target = Vec3::new(target_pos.x, current.y, target_pos.z); // maintain current Y
-
-            player.current_position = (target.x, target.z);
-
-            let direction = target - current;
-            let distance = direction.length();
-
-            if distance > 0.01 {
-                // Movement speed in units per second
-                let speed = 5.0;
-                let max_step = speed * time.delta_secs();
-
-                let movement = if distance <= max_step {
-                    // Snap if we're close enough
-                    player.path = None;
-                    player.current_animation = PlayerAnimation::Idle;
-                    target - current // just go straight to the target
-                } else {
-                    direction.normalize() * max_step
-                };
-
-                transform.translation += movement;
-
-                let t = (time.delta_secs() * 8.0).min(1.0);
-                transform.rotation = current_rotation.slerp(rotation, t);
-            } else {
-                transform.translation = target;
-                transform.rotation = rotation;
-                player.path = None;
-                player.current_animation = PlayerAnimation::Idle;
-            }
-        }
     }
 }

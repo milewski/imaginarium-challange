@@ -62,7 +62,7 @@ fn switch_player_animation(
                     transitions
                         .play(
                             &mut animation_player,
-                            animation.to_animation(),
+                            animation.to_index(),
                             Duration::from_millis(250),
                         )
                         .repeat();
@@ -76,7 +76,7 @@ fn switch_player_animation(
                     if player.current_animation == PlayerAnimation::Idle {
                         transitions.play(
                             &mut animation_player,
-                            PlayerAnimation::Jumping.to_animation(),
+                            PlayerAnimation::Jumping.to_index(),
                             Duration::from_millis(250),
                         );
 

@@ -25,6 +25,7 @@ use bevy_sprite3d::{Sprite3dBuilder, Sprite3dParams, Sprite3dPlugin};
 use num_traits::{Float, FloatConst};
 use std::any::Any;
 use std::f32::consts::PI;
+use bevy::diagnostic::FrameTimeDiagnosticsPlugin;
 
 #[derive(Resource, Default)]
 struct AssetsCache(Vec<Handle<Image>>);
@@ -38,6 +39,7 @@ enum GameState {
 
 fn main() {
     App::new()
+        .add_plugins(FrameTimeDiagnosticsPlugin::default())
         .add_plugins(RobotPlugin)
         .add_plugins(NetworkPlugin)
         .add_plugins((DefaultPlugins, InfiniteGridPlugin))
@@ -123,7 +125,7 @@ fn sprite_system(
                 double_sided: true,
                 ..default()
             }
-            .bundle(&mut sprite_params),
+                .bundle(&mut sprite_params),
             Transform {
                 translation: Vec3::new(
                     get_random_between(-5.0, 5.0),

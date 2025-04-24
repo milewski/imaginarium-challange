@@ -8,7 +8,7 @@ use tokio_tungstenite_wasm::Message;
 #[cfg(not(target_arch = "wasm32"))]
 use tungstenite::Message;
 
-#[derive(Debug, Default, Copy, Clone, bincode::Encode, bincode::Decode)]
+#[derive(Debug, Default, Copy, Clone, Hash, PartialEq, Eq, bincode::Encode, bincode::Decode)]
 pub struct Coordinate {
     pub x: i32,
     pub y: i32,
@@ -24,7 +24,7 @@ impl From<Vec3> for Coordinate {
     fn from(value: Vec3) -> Self {
         Coordinate {
             x: value.x as i32,
-            y: value.y as i32
+            y: value.z as i32,
         }
     }
 }
@@ -38,7 +38,7 @@ impl PlayerId {
     }
 }
 
-#[derive(Debug, Copy, Clone, bincode::Encode, bincode::Decode)]
+#[derive(Debug, Copy, Clone, Hash, PartialEq, Eq, bincode::Encode, bincode::Decode)]
 pub struct PlayerData {
     pub id: PlayerId,
     pub position: Coordinate,
@@ -57,6 +57,7 @@ pub enum SystemMessages {
 
     PlayerPosition { coordinate: Coordinate },
     EnemyPosition { id: PlayerId, coordinate: Coordinate },
+    EnemyDisconnected { id: PlayerId },
 
     MainPlayerSpawn { data: PlayerData },
     EnemyPlayerSpawn { data: PlayerData },
