@@ -81,25 +81,25 @@ fn move_robot_animation_system(
     }
 }
 
-fn robot_animation_movement_system(
+fn initialize_animations_observer(
     trigger: Trigger<SceneInstanceReady>,
-    mut commands: Commands,
     children: Query<&Children>,
-    query: Query<(&Animations, &Robot)>,
+    animations: Query<&Animations, With<Robot>>,
+    mut commands: Commands,
     mut players: Query<&mut AnimationPlayer>,
 ) {
-    if let Ok((animation_to_play, robot)) = query.get(trigger.entity()) {
+    if let Ok(animations) = animations.get(trigger.entity()) {
         for child in children.iter_descendants(trigger.entity()) {
             if let Ok(mut player) = players.get_mut(child) {
                 let mut transitions = AnimationTransitions::new();
 
                 transitions
-                    .play(&mut player, animation_to_play.animations[0], Duration::ZERO)
+                    .play(&mut player, animations.animations[0], Duration::ZERO)
                     .repeat();
 
                 commands
                     .entity(child)
-                    .insert(AnimationGraphHandle(animation_to_play.graph.clone()))
+                    .insert(AnimationGraphHandle(animations.graph.clone()))
                     .insert(transitions);
             }
         }
@@ -147,7 +147,7 @@ fn spawn_player_system(
 
     commands
         .spawn((animation_to_play, robot, transform, mesh, Player::default()))
-        .observe(robot_animation_movement_system);
+        .observe(initialize_animations_observer);
 
     // commands.spawn((
     //     SceneRoot(asset_server.load(GltfAssetLabel::Scene(0).from_asset(ROBOT_GLB_PATH))),
