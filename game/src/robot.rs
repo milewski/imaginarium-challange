@@ -159,7 +159,7 @@ fn spawn_player(
     let robot = Robot::default();
 
     let transform = Transform {
-        scale: Vec3::splat(0.5),
+        scale: Vec3::splat(0.8),
         translation: match player_kind {
             PlayerKind::MainPlayer(data) => data.position.to_vec3(),
             PlayerKind::Enemy(data) => data.position.to_vec3(),
@@ -340,10 +340,12 @@ struct Animations {
 // }
 
 fn find_closest_clear_path(start: &Vec3, end: &Vec3, elements: &Vec<&Vec3>) -> Vec3 {
-    let radius = 1.0;
     let grid_size = 1.0;
     let mut blocked = false;
     let mut closest_safe_point = end.clone();
+
+    let band_half_length = 3.0 * grid_size;
+    let band_thickness = 1.0 * grid_size;
 
     for obstacle in elements {
         let delta = end - start;
@@ -352,10 +354,20 @@ fn find_closest_clear_path(start: &Vec3, end: &Vec3, elements: &Vec<&Vec3>) -> V
 
         for index in 1..=steps {
             let step_point = start + direction * (index as f32 * grid_size);
-            let distance = step_point.distance(**obstacle);
 
-            if distance <= radius {
+            // Offset from obstacle center
+            let dx = step_point.x - obstacle.x;
+            let dz = step_point.z - obstacle.z;
+
+            // Project onto (1, -1) direction for isometric horizontal line
+            let iso_horizontal = (dx - dz) / 2.0;   // movement along the horizontal isometric line
+            let iso_vertical   = (dx + dz) / 2.0;   // perpendicular offset (vertical band thickness)
+
+            // Check if inside the isometric-aligned rectangle
+            if iso_horizontal.abs() <= band_half_length &&
+                iso_vertical.abs() <= band_thickness {
                 blocked = true;
+
                 closest_safe_point = start + direction * ((index - 1) as f32 * grid_size);
                 closest_safe_point.x = (closest_safe_point.x / grid_size).round() * grid_size;
                 closest_safe_point.z = (closest_safe_point.z / grid_size).round() * grid_size;
@@ -369,7 +381,7 @@ fn find_closest_clear_path(start: &Vec3, end: &Vec3, elements: &Vec<&Vec3>) -> V
     }
 
     if blocked {
-        closest_safe_point.clone()
+        closest_safe_point
     } else {
         end.clone()
     }

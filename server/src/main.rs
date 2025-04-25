@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::error::Error;
 use std::sync::Arc;
 
@@ -7,13 +7,14 @@ use tokio::net::TcpListener;
 use tokio::sync::{mpsc, Mutex};
 use tokio_tungstenite::accept_async;
 
-use shared::{Coordinate, PlayerData, PlayerId, SystemMessages};
+use shared::{Coordinate, Monument, PlayerData, PlayerId, SystemMessages};
 
 type Sender = mpsc::UnboundedSender<SystemMessages>;
 
 #[derive(Default, Clone)]
 struct World {
     inner: Arc<Mutex<HashMap<PlayerId, PlayerData>>>,
+    monuments: Arc<Mutex<HashSet<Monument>>>,
 }
 
 impl World {
@@ -23,6 +24,14 @@ impl World {
 
     pub async fn players(&self) -> Vec<PlayerData> {
         self.inner.lock().await.values().copied().collect()
+    }
+
+    pub async fn monuments(&self) -> Vec<Monument> {
+        self.monuments.lock().await.iter().copied().collect()
+    }
+
+    pub async fn add_monument(&self, monument: Monument) {
+        self.monuments.lock().await.insert(monument);
     }
 
     pub async fn add(&self, data: PlayerData) {
@@ -100,6 +109,10 @@ impl ScopedManager {
         self.inner.broadcast_except(self.id, message).await
     }
 
+    pub async fn broadcast_to_all(&self, message: SystemMessages) {
+        self.inner.broadcast(message).await;
+    }
+
     async fn remove(&self, id: PlayerId) {
         self.inner.remove(id).await
     }
@@ -122,6 +135,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
         let player_data = PlayerData {
             id: player_id,
+            balance: 0,
             position: Coordinate::default(),
         };
 
@@ -182,6 +196,16 @@ async fn handle_player_communication(scope: ScopedManager, world: World, message
         }
         SystemMessages::MainPlayerSpawn { .. } => {}
         SystemMessages::EnemyPlayerSpawn { .. } => {}
+        SystemMessages::BuildMonument { coordinate } => {
+            // Relay the message to everyone connected
+            scope.broadcast_to_all(SystemMessages::BuildMonument { coordinate }).await;
+            world.add_monument(Monument { position: coordinate }).await;
+        }
+        SystemMessages::MainPlayerPickedUpToken => {
+            if let Some(mut player) = world.get(scope.id).await {
+                player.balance += 1;
+            };
+        }
         _ => {}
     }
 }
@@ -199,6 +223,10 @@ async fn on_player_connect(scoped: ScopedManager, world: World) {
             if data.id != scoped.id {
                 scoped.reply(SystemMessages::EnemyPlayerSpawn { data }).await;
             }
+        }
+
+        for monument in world.monuments().await {
+            scoped.reply(SystemMessages::BuildMonument { coordinate: monument.position }).await;
         }
 
         tokio::join!(player, enemy);

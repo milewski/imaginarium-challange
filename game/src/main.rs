@@ -4,7 +4,9 @@ mod mouse_plugin;
 mod network;
 mod robot;
 mod tokens;
+mod builder;
 
+use crate::builder::BuilderPlugin;
 use crate::button_plugin::ButtonPlugin;
 use crate::mouse_plugin::{Draggable, MousePlugin};
 use crate::network::NetworkPlugin;
@@ -35,8 +37,8 @@ enum GameState {
 
 fn main() {
     App::new()
-        .add_plugins(FrameTimeDiagnosticsPlugin::default())
         .add_plugins(RobotPlugin)
+        .add_plugins(BuilderPlugin)
         .add_plugins(NetworkPlugin)
         .add_plugins((DefaultPlugins, InfiniteGridPlugin))
         .add_plugins(CameraController)
@@ -161,12 +163,13 @@ fn setup_system(
         Camera3d::default(),
         Projection::from(OrthographicProjection {
             scaling_mode: ScalingMode::FixedVertical {
-                viewport_height: 12.0,
+                viewport_height: 16.0,
             },
-            near: -10.0,
+            near: -100.0,
+            far: 100.0,
             ..OrthographicProjection::default_3d()
         }),
-        Transform::from_xyz(5.0, 5.0, 5.0).looking_at(Vec3::ZERO, Vec3::Y),
+        Transform::from_xyz(5.0, 4.0, 5.0).looking_at(Vec3::ZERO, Vec3::Y),
         CameraController::default(),
     ));
 

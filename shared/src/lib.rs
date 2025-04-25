@@ -40,6 +40,12 @@ impl PlayerId {
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq, bincode::Encode, bincode::Decode)]
 pub struct PlayerData {
     pub id: PlayerId,
+    pub balance: u32,
+    pub position: Coordinate,
+}
+
+#[derive(Debug, Copy, Clone, Hash, PartialEq, Eq, bincode::Encode, bincode::Decode)]
+pub struct Monument {
     pub position: Coordinate,
 }
 
@@ -58,6 +64,8 @@ pub enum SystemMessages {
     EnemyPosition { id: PlayerId, coordinate: Coordinate },
     EnemyDisconnected { id: PlayerId },
 
+    BuildMonument { coordinate: Coordinate },
+    MainPlayerPickedUpToken,
     MainPlayerSpawn { data: PlayerData },
     EnemyPlayerSpawn { data: PlayerData },
 }

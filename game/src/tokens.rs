@@ -4,8 +4,10 @@ use bevy::asset::{AssetServer, Handle};
 use bevy::hierarchy::ChildBuild;
 use bevy::image::Image;
 use bevy::math::{Quat, Vec2, Vec3};
-use bevy::prelude::{default, resource_exists, AlphaMode, Commands, Component, Entity, IntoSystemConfigs, Local, Plugin, Query, Res, Resource, Transform, With};
+use bevy::prelude::{default, resource_exists, AlphaMode, Commands, Component, Entity, EventWriter, IntoSystemConfigs, Local, Plugin, Query, Res, Resource, Transform, With};
 use bevy_sprite3d::{Sprite3dBuilder, Sprite3dParams};
+use shared::SystemMessages;
+use crate::network::SendWebSocketMessage;
 
 pub struct TokensPlugin;
 
@@ -24,7 +26,7 @@ struct TokenHandle(Handle<Image>);
 pub struct Token;
 
 fn load_token(mut commands: Commands, asset_server: Res<AssetServer>) {
-    commands.insert_resource(TokenHandle(asset_server.load("giraffe.png")));
+    commands.insert_resource(TokenHandle(asset_server.load("scrap_002.png")));
 }
 
 fn setup(
@@ -56,8 +58,9 @@ fn setup(
 
 fn pickup_token_system(
     mut commands: Commands,
-    query: Query<(Entity, &Transform), With<Token>>, // All tokens
+    query: Query<(Entity, &Transform), With<Token>>,
     player_query: Query<&Transform, With<Player>>,
+    mut event: EventWriter<SendWebSocketMessage>
 ) {
     for player_transform in player_query.iter() {
         for (token_entity, token_transform) in query.iter() {
@@ -66,6 +69,7 @@ fn pickup_token_system(
 
             if distance < pickup_radius {
                 commands.entity(token_entity).despawn();
+                event.send(SendWebSocketMessage(SystemMessages::MainPlayerPickedUpToken));
             }
         }
     }
@@ -87,10 +91,10 @@ fn create_token(
             pivot: Some(Vec2::new(0.5, 0.0)),
             double_sided: true,
             ..default()
-        }
-            .bundle(sprite_params),
+        }.bundle(sprite_params),
         Transform {
             translation: position,
+            scale: Vec3::splat(0.8),
             rotation: Quat::from_rotation_y(45f32.to_radians()),
             ..default()
         },
