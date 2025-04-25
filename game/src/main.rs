@@ -5,6 +5,7 @@ mod network;
 mod robot;
 mod tokens;
 mod builder;
+mod ui;
 
 use crate::builder::BuilderPlugin;
 use crate::button_plugin::ButtonPlugin;
@@ -24,6 +25,8 @@ use bevy_sprite3d::{Sprite3dBuilder, Sprite3dParams, Sprite3dPlugin};
 use num_traits::{Float, FloatConst};
 use std::any::Any;
 use std::f32::consts::PI;
+use bevy::window::WindowMode;
+use crate::ui::UIPlugin;
 
 #[derive(Resource, Default)]
 struct AssetsCache(Vec<Handle<Image>>);
@@ -37,12 +40,23 @@ enum GameState {
 
 fn main() {
     App::new()
+        .add_plugins(UIPlugin)
+        .add_plugins(ButtonPlugin)
         .add_plugins(RobotPlugin)
         .add_plugins(BuilderPlugin)
         .add_plugins(NetworkPlugin)
-        .add_plugins((DefaultPlugins, InfiniteGridPlugin))
+        .add_plugins((
+            DefaultPlugins.set(WindowPlugin {
+                primary_window: Some(Window {
+                    fit_canvas_to_parent: true,
+                    ..default()
+                }),
+                ..default()
+            }),
+            InfiniteGridPlugin,
+        ))
         .add_plugins(CameraController)
-        .add_plugins((ButtonPlugin, TokensPlugin))
+        .add_plugins(TokensPlugin)
         .add_plugins(Sprite3dPlugin)
         // .add_plugins(FoxPlugin)
         // .add_plugins(PanOrbitCameraPlugin)
@@ -149,6 +163,7 @@ fn setup_system(
             z_axis_color: GRAY_200.into(),
             major_line_color: GRAY_100.into(),
             minor_line_color: GRAY_100.into(),
+            scale: 1.0,
             ..default()
         },
         ..default()

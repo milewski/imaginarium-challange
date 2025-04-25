@@ -388,7 +388,7 @@ fn find_closest_clear_path(start: &Vec3, end: &Vec3, elements: &Vec<&Vec3>) -> V
 }
 
 #[derive(Component, Default, Debug)]
-pub struct Player {}
+pub struct Player;
 
 #[derive(Default, Debug, Clone, Copy, PartialEq)]
 pub enum PlayerAnimation {
