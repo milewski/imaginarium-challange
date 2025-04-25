@@ -9,6 +9,8 @@ use tokio_tungstenite::accept_async;
 
 use shared::{Coordinate, Monument, PlayerData, PlayerId, SystemMessages};
 
+mod vector;
+
 type Sender = mpsc::UnboundedSender<SystemMessages>;
 
 #[derive(Default, Clone)]
@@ -27,7 +29,7 @@ impl World {
     }
 
     pub async fn monuments(&self) -> Vec<Monument> {
-        self.monuments.lock().await.iter().copied().collect()
+        self.monuments.lock().await.iter().cloned().collect()
     }
 
     pub async fn add_monument(&self, monument: Monument) {
@@ -120,7 +122,7 @@ impl ScopedManager {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
-    let listener = TcpListener::bind("127.0.0.1:9001").await?;
+    let listener = TcpListener::bind("0.0.0.0:9001").await?;
     let manager = Manager::new();
     let world = World::default();
 
@@ -199,7 +201,12 @@ async fn handle_player_communication(scope: ScopedManager, world: World, message
         SystemMessages::BuildMonument { coordinate } => {
             // Relay the message to everyone connected
             scope.broadcast_to_all(SystemMessages::BuildMonument { coordinate }).await;
-            world.add_monument(Monument { position: coordinate }).await;
+            world.add_monument(Monument {
+                id: 0,
+                description: "test".into(),
+                asset: "test".into(),
+                position: coordinate
+            }).await;
         }
         SystemMessages::MainPlayerPickedUpToken => {
             if let Some(mut player) = world.get(scope.id).await {

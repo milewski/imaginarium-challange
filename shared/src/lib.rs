@@ -44,8 +44,11 @@ pub struct PlayerData {
     pub position: Coordinate,
 }
 
-#[derive(Debug, Copy, Clone, Hash, PartialEq, Eq, bincode::Encode, bincode::Decode)]
+#[derive(Debug, Clone, Hash, PartialEq, Eq, bincode::Encode, bincode::Decode)]
 pub struct Monument {
+    pub id: u32,
+    pub asset: String,
+    pub description: String,
     pub position: Coordinate,
 }
 
