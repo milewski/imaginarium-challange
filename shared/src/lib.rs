@@ -17,6 +17,13 @@ impl Coordinate {
     pub fn to_vec3(&self) -> Vec3 {
         Vec3::new(self.x as f32, 0.0, self.y as f32)
     }
+
+    pub fn drift_by(mut self, amount: i32) -> Coordinate {
+        self.x -= amount;
+        self.y -= amount;
+
+        self
+    }
 }
 
 impl From<Vec3> for Coordinate {
@@ -68,7 +75,7 @@ pub enum SystemMessages {
     EnemyDisconnected { id: PlayerId },
 
     BuildMonumentRequest { prompt: String },
-    BuildMonument { coordinate: Coordinate },
+    BuildMonument { monument: Monument },
     MainPlayerPickedUpToken,
     MainPlayerCurrentBalance { balance: u32 },
     MainPlayerSpawn { data: PlayerData },

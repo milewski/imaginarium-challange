@@ -58,6 +58,15 @@ impl World {
             0
         }
     }
+
+    pub async fn decrement_balance_by(&self, id: PlayerId, amount: u32) -> u32 {
+        if let Some(data) = self.inner.lock().await.get_mut(&id) {
+            data.balance -= amount;
+            data.balance
+        } else {
+            0
+        }
+    }
 }
 
 #[derive(Default, Clone)]
@@ -207,25 +216,26 @@ async fn handle_player_communication(scope: ScopedManager, world: World, message
         }
         SystemMessages::MainPlayerSpawn { .. } => {}
         SystemMessages::EnemyPlayerSpawn { .. } => {}
-        SystemMessages::BuildMonument { coordinate } => {
-            // Relay the message to everyone connected
-            scope.broadcast_to_all(SystemMessages::BuildMonument { coordinate }).await;
-            world.add_monument(Monument {
-                id: 0,
-                description: "test".into(),
-                asset: "test".into(),
-                position: coordinate,
-            }).await;
+        SystemMessages::BuildMonumentRequest { prompt } => {
+            if let Some(data) = world.get(scope.id).await {
+                let monument = Monument {
+                    id: 0,
+                    description: prompt.into(),
+                    asset: "funny-guy.png".into(),
+                    position: data.position.drift_by(3),
+                };
+
+                let balance = world.decrement_balance_by(scope.id, 5).await;
+
+                scope.reply(SystemMessages::MainPlayerCurrentBalance { balance }).await;
+                world.add_monument(monument.clone()).await;
+
+                scope.broadcast_to_all(SystemMessages::BuildMonument { monument }).await;
+            }
         }
         SystemMessages::MainPlayerPickedUpToken => {
             let balance = world.increment_balance(scope.id).await;
-
             scope.reply(SystemMessages::MainPlayerCurrentBalance { balance }).await;
-
-            // if let Some(mut player) = world.get_mut(scope.id).await {
-            //     player.balance += 1;
-            //     scope.reply(SystemMessages::MainPlayerCurrentBalance { balance: player.balance }).await;
-            // };
         }
         _ => {}
     }
@@ -247,7 +257,7 @@ async fn on_player_connect(scoped: ScopedManager, world: World) {
         }
 
         for monument in world.monuments().await {
-            scoped.reply(SystemMessages::BuildMonument { coordinate: monument.position }).await;
+            scoped.reply(SystemMessages::BuildMonument { monument }).await;
         }
 
         tokio::join!(player, enemy);

@@ -1,9 +1,10 @@
-use crate::robot::Player;
+use crate::js_bridge_plugin::{JSBridgeMessages, JsBridgeMessageReceived};
+use crate::network::{SendWebSocketMessage, WebSocketMessageReceived};
 use bevy::prelude::*;
 use bevy::utils::HashMap;
 use bevy_sprite3d::{Sprite3dBuilder, Sprite3dParams};
+use futures_util::SinkExt;
 use shared::{Monument, SystemMessages};
-use crate::network::{SendWebSocketMessage, WebSocketMessageReceived};
 
 pub struct BuilderPlugin;
 
@@ -22,10 +23,8 @@ fn sync_monument_system(
     mut queue: Local<HashMap<Monument, Handle<Image>>>,
 ) {
     for event in events.read() {
-        if let SystemMessages::BuildMonument { coordinate } = event.0 {
-            // let handle: Handle<Image> = asset_server.load("funny-guy.png");
-            // let monument = Monument { position: coordinate };
-            // queue.entry(monument).or_insert(handle);
+        if let SystemMessages::BuildMonument { monument } = &event.0 {
+            queue.entry(monument.clone()).or_insert(asset_server.load(&monument.asset));
         }
     }
 
@@ -44,15 +43,13 @@ fn sync_monument_system(
 }
 
 fn build_monument_system(
-    mut commands: Commands,
-    mut sprite_params: Sprite3dParams,
-    player: Query<&Transform, With<Player>>,
-    mut event: EventWriter<SendWebSocketMessage>,
-    mouse: Res<ButtonInput<MouseButton>>,
+    mut websocket: EventWriter<SendWebSocketMessage>,
+    mut js_bridge_events: EventReader<JsBridgeMessageReceived>,
 ) {
-    // spawn_monument(&mut commands, &assets, &mut sprite_params, player.single().translation);
-    if mouse.just_pressed(MouseButton::Right) {
-        event.send(SendWebSocketMessage(SystemMessages::BuildMonumentRequest { prompt: "hello".into() }));
+    for js_bridge_event in js_bridge_events.read() {
+        if let JSBridgeMessages::CallOpenModalResponse(Some(prompt)) = &js_bridge_event.0 {
+            websocket.send(SendWebSocketMessage(SystemMessages::BuildMonumentRequest { prompt: prompt.clone() }));
+        }
     }
 }
 
