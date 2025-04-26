@@ -18,11 +18,17 @@ use shared::{PlayerData, PlayerId, SystemMessages};
 
 use crate::network::{SendWebSocketMessage, WebSocketMessageReceived};
 use crate::tokens::Token;
-use crate::ui::{UiInputBlocker};
+use crate::ui::{handle_build_monument_button_state_system, UiInputBlocker};
 
 pub const ROBOT_GLB_PATH: &str = "RobotExpressive.glb";
 
 pub struct RobotPlugin;
+
+#[derive(Component)]
+struct Animations {
+    index: Vec<AnimationNodeIndex>,
+    graph: Handle<AnimationGraph>,
+}
 
 #[derive(Component, Default, Debug)]
 pub struct Robot {
@@ -39,18 +45,14 @@ pub enum PlayerKind {
 
 impl Plugin for RobotPlugin {
     fn build(&self, app: &mut App) {
-        // app.add_systems(Startup, initialize_animations_system);
         app.add_systems(Update, listen_to_player_spawn_events_system);
         app.add_systems(Update, listen_to_player_balance_update);
-
         app.add_systems(Update, remove_disconnected_players_system);
-        // app.add_systems(Update, start_robot_idle_animation);
         app.add_systems(Update, robots_movement_system);
         app.add_systems(Update, listen_for_enemy_movement_system);
         app.add_systems(Update, move_robot_animation_system);
-        // app.add_systems(Update, robot_animation_movement_system);
         app.add_systems(
-            Update, calculate_player_movement_target_system.run_if(should_run),
+            Update, calculate_player_movement_target_system.run_if(should_run).after(handle_build_monument_button_state_system),
         );
     }
 }
@@ -326,45 +328,6 @@ fn calculate_player_movement_target_system(
         }
     }
 }
-
-#[derive(Component)]
-struct Animations {
-    index: Vec<AnimationNodeIndex>,
-    graph: Handle<AnimationGraph>,
-}
-
-// fn initialize_animations_system(
-//     asset_server: Res<AssetServer>,
-//     mut commands: Commands,
-//     mut graphs: ResMut<Assets<AnimationGraph>>,
-// ) {
-//     let (graph, node_indices) =
-//         AnimationGraph::from_clips(PlayerAnimation::clips().map(|clip| asset_server.load(clip)));
-//
-//     commands.insert_resource(Animations {
-//         animations: node_indices,
-//         graph: graphs.add(graph),
-//     });
-// }
-
-// fn start_robot_idle_animation(
-//     mut commands: Commands,
-//     animations: Res<Animations>,
-//     mut players: Query<(Entity, &mut AnimationPlayer), Added<AnimationPlayer>>,
-// ) {
-//     for (entity, mut player) in &mut players {
-//         let mut transitions = AnimationTransitions::new();
-//
-//         transitions
-//             .play(&mut player, animations.animations[0], Duration::ZERO)
-//             .repeat();
-//
-//         commands
-//             .entity(entity)
-//             .insert(AnimationGraphHandle(animations.graph.clone()))
-//             .insert(transitions);
-//     }
-// }
 
 fn find_closest_clear_path(start: &Vec3, end: &Vec3, elements: &Vec<&Vec3>) -> Vec3 {
     let grid_size = 1.0;

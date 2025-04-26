@@ -7,6 +7,9 @@ run:
 run-server:
     cargo run -p server --release
 
+start:
+    cd game/frontend && yarn dev
+
 build:
     cd game && wasm-pack build --release --target web --no-opt --no-pack --out-dir frontend/wasm
     cp -r assets ./game/frontend/public
