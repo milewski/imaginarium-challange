@@ -2,21 +2,27 @@ use std::collections::{HashMap, HashSet};
 use std::error::Error;
 use std::sync::Arc;
 
+use futures_util::task::SpawnExt;
 use futures_util::{SinkExt, StreamExt};
 use tokio::net::TcpListener;
 use tokio::sync::{mpsc, Mutex};
 use tokio_tungstenite::accept_async;
 
+use crate::comfyui::ComfyUI;
+use crate::vector::Engine;
 use shared::{Coordinate, Monument, PlayerData, PlayerId, SystemMessages};
+use crate::api::build_server;
 
 mod vector;
+mod comfyui;
+mod api;
 
 type Sender = mpsc::UnboundedSender<SystemMessages>;
 
 #[derive(Default, Clone)]
 struct World {
     inner: Arc<Mutex<HashMap<PlayerId, PlayerData>>>,
-    monuments: Arc<Mutex<HashSet<Monument>>>,
+    monuments: Arc<Mutex<HashMap<u32, Monument>>>,
 }
 
 impl World {
@@ -29,11 +35,20 @@ impl World {
     }
 
     pub async fn monuments(&self) -> Vec<Monument> {
-        self.monuments.lock().await.iter().cloned().collect()
+        self.monuments.lock().await.values().cloned().collect()
     }
 
     pub async fn add_monument(&self, monument: Monument) {
-        self.monuments.lock().await.insert(monument);
+        self.monuments.lock().await.insert(monument.id, monument);
+    }
+
+    pub async fn complete_monument(&self, id: u32, asset: &str) {
+        let mut monuments = self.monuments.lock().await;
+
+        if let Some(monument) = monuments.get_mut(&id) {
+            monument.asset = asset.to_string();
+            monument.under_construction = false;
+        }
     }
 
     pub async fn add(&self, data: PlayerData) {
@@ -121,7 +136,7 @@ impl ScopedManager {
         Self { id, inner: parent }
     }
 
-    pub async fn reply(&self, message: SystemMessages) {
+    pub async fn brodcast_to_self(&self, message: SystemMessages) {
         self.inner.broadcast_to(self.id, message).await
     }
 
@@ -143,8 +158,11 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let listener = TcpListener::bind("0.0.0.0:9001").await?;
     let manager = Manager::new();
     let world = World::default();
+    // let engine = Engine::new().await?;
 
     let world_clone = world.clone();
+
+    tokio::spawn(build_server(manager.clone(), world.clone()));
 
     while let Ok((stream, _)) = listener.accept().await {
         let websocket = accept_async(stream).await?;
@@ -152,6 +170,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
         let (sender, mut receiver) = mpsc::unbounded_channel();
         let player_id = PlayerId::random();
+        // let engine_clone = engine.clone();
 
         let player_data = PlayerData {
             id: player_id,
@@ -206,7 +225,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
 async fn handle_player_communication(scope: ScopedManager, world: World, message: SystemMessages) {
     match message {
-        SystemMessages::Ping => scope.reply(SystemMessages::Pong).await,
+        SystemMessages::Ping => scope.brodcast_to_self(SystemMessages::Pong).await,
         SystemMessages::Pong => {}
         SystemMessages::Connected { .. } => {}
         SystemMessages::Welcome { .. } => {}
@@ -218,24 +237,31 @@ async fn handle_player_communication(scope: ScopedManager, world: World, message
         SystemMessages::EnemyPlayerSpawn { .. } => {}
         SystemMessages::BuildMonumentRequest { prompt } => {
             if let Some(data) = world.get(scope.id).await {
-                let monument = Monument {
-                    id: 0,
-                    description: prompt.into(),
-                    asset: "funny-guy.png".into(),
-                    position: data.position.drift_by(3),
-                };
+                match ComfyUI::new().generate(prompt.as_str()).await {
+                    Ok(id) => {
+                        let monument = Monument {
+                            id,
+                            description: prompt.into(),
+                            asset: "under-construction.png".into(),
+                            position: data.position.drift_by(3),
+                            under_construction: true,
+                        };
 
-                let balance = world.decrement_balance_by(scope.id, 5).await;
+                        let balance = world.decrement_balance_by(scope.id, 5).await;
+                        world.add_monument(monument.clone()).await;
 
-                scope.reply(SystemMessages::MainPlayerCurrentBalance { balance }).await;
-                world.add_monument(monument.clone()).await;
-
-                scope.broadcast_to_all(SystemMessages::BuildMonument { monument }).await;
+                        scope.brodcast_to_self(SystemMessages::MainPlayerCurrentBalance { balance }).await;
+                        scope.broadcast_to_all(SystemMessages::BuildMonument { monument }).await;
+                    }
+                    Err(_) => {
+                        // notify client that his generation failed...
+                    }
+                }
             }
         }
         SystemMessages::MainPlayerPickedUpToken => {
             let balance = world.increment_balance(scope.id).await;
-            scope.reply(SystemMessages::MainPlayerCurrentBalance { balance }).await;
+            scope.brodcast_to_self(SystemMessages::MainPlayerCurrentBalance { balance }).await;
         }
         _ => {}
     }
@@ -245,19 +271,19 @@ async fn on_player_connect(scoped: ScopedManager, world: World) {
     if let Some(data) = world.get(scoped.id).await {
 
         // Spawn the main player
-        let player = scoped.reply(SystemMessages::MainPlayerSpawn { data: data.clone() });
+        let player = scoped.brodcast_to_self(SystemMessages::MainPlayerSpawn { data: data.clone() });
 
         // Then notify everyone that there is a new boss in town
         let enemy = scoped.broadcast(SystemMessages::EnemyPlayerSpawn { data: data.clone() });
 
         for data in world.players().await {
             if data.id != scoped.id {
-                scoped.reply(SystemMessages::EnemyPlayerSpawn { data }).await;
+                scoped.brodcast_to_self(SystemMessages::EnemyPlayerSpawn { data }).await;
             }
         }
 
         for monument in world.monuments().await {
-            scoped.reply(SystemMessages::BuildMonument { monument }).await;
+            scoped.brodcast_to_self(SystemMessages::BuildMonument { monument }).await;
         }
 
         tokio::join!(player, enemy);

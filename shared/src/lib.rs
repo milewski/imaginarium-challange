@@ -1,3 +1,4 @@
+use std::hash::{Hash, Hasher};
 use bevy::math::Vec3;
 use bevy::prelude::Component;
 use bincode::config::standard;
@@ -51,12 +52,13 @@ pub struct PlayerData {
     pub position: Coordinate,
 }
 
-#[derive(Debug, Clone, Hash, PartialEq, Eq, bincode::Encode, bincode::Decode)]
+#[derive(Component, Debug, Clone, Hash, PartialEq, Eq, bincode::Encode, bincode::Decode)]
 pub struct Monument {
     pub id: u32,
     pub asset: String,
     pub description: String,
     pub position: Coordinate,
+    pub under_construction: bool,
 }
 
 #[derive(Debug, Clone, bincode::Encode, bincode::Decode)]
@@ -75,6 +77,7 @@ pub enum SystemMessages {
     EnemyDisconnected { id: PlayerId },
 
     BuildMonumentRequest { prompt: String },
+    MonumentCompleted { id: u32, asset: String },
     BuildMonument { monument: Monument },
     MainPlayerPickedUpToken,
     MainPlayerCurrentBalance { balance: u32 },

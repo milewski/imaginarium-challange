@@ -1,0 +1,306 @@
+{
+  "3": {
+    "inputs": {
+      "seed": 11100000000000000000000111,
+      "steps": 20,
+      "cfg": 3,
+      "sampler_name": "lcm",
+      "scheduler": "normal",
+      "denoise": 1,
+      "model": [
+        "40",
+        0
+      ],
+      "positive": [
+        "25",
+        0
+      ],
+      "negative": [
+        "7",
+        0
+      ],
+      "latent_image": [
+        "5",
+        0
+      ]
+    },
+    "class_type": "KSampler",
+    "_meta": {
+      "title": "KSampler"
+    }
+  },
+  "4": {
+    "inputs": {
+      "ckpt_name": "SDXL\\juggernautXL_juggXIByRundiffusion.safetensors"
+    },
+    "class_type": "CheckpointLoaderSimple",
+    "_meta": {
+      "title": "Load Checkpoint"
+    }
+  },
+  "5": {
+    "inputs": {
+      "width": 1024,
+      "height": 1024,
+      "batch_size": 1
+    },
+    "class_type": "EmptyLatentImage",
+    "_meta": {
+      "title": "Empty Latent Image"
+    }
+  },
+  "7": {
+    "inputs": {
+      "text": "worst quality, low quality, text, censored, deformed, bad hand, deformed, mutated, ugly, disfigured, blur, blurry, noise, noisy, (realistic:1.5), photographic, (platform:1.5), base, ground,",
+      "clip": [
+        "40",
+        1
+      ]
+    },
+    "class_type": "CLIPTextEncode",
+    "_meta": {
+      "title": "CLIP Text Encode (Prompt)"
+    }
+  },
+  "8": {
+    "inputs": {
+      "samples": [
+        "3",
+        0
+      ],
+      "vae": [
+        "4",
+        2
+      ]
+    },
+    "class_type": "VAEDecode",
+    "_meta": {
+      "title": "VAE Decode"
+    }
+  },
+  "25": {
+    "inputs": {
+      "text": [
+        "29",
+        0
+      ],
+      "clip": [
+        "40",
+        1
+      ]
+    },
+    "class_type": "CLIPTextEncode",
+    "_meta": {
+      "title": "CLIP Text Encode (Prompt)"
+    }
+  },
+  "26": {
+    "inputs": {
+      "text": "__PROMPT__"
+    },
+    "class_type": "ttN text",
+    "_meta": {
+      "title": "Object"
+    }
+  },
+  "28": {
+    "inputs": {
+      "text": "isometric, (dotart:1.5), illustration, 8bit style, pixel art, white background, 45 degree angle"
+    },
+    "class_type": "ttN text",
+    "_meta": {
+      "title": "Style"
+    }
+  },
+  "29": {
+    "inputs": {
+      "delimiter": ", ",
+      "clean_whitespace": "true",
+      "text_a": [
+        "26",
+        0
+      ],
+      "text_b": [
+        "28",
+        0
+      ],
+      "text_c": ""
+    },
+    "class_type": "Text Concatenate",
+    "_meta": {
+      "title": "Text Concatenate"
+    }
+  },
+  "34": {
+    "inputs": {
+      "lora_name": "SDXL\\zavy-ctsmtrc-sdxl.safetensors",
+      "strength_model": 0.75,
+      "model": [
+        "4",
+        0
+      ]
+    },
+    "class_type": "LoraLoaderModelOnly",
+    "_meta": {
+      "title": "LoraLoaderModelOnly"
+    }
+  },
+  "35": {
+    "inputs": {
+      "lora_name": "SDXL\\CLAYMATE_V2.03_.safetensors",
+      "strength_model": 0.5,
+      "model": [
+        "34",
+        0
+      ]
+    },
+    "class_type": "LoraLoaderModelOnly",
+    "_meta": {
+      "title": "LoraLoaderModelOnly"
+    }
+  },
+  "38": {
+    "inputs": {
+      "images": [
+        "8",
+        0
+      ]
+    },
+    "class_type": "PreviewImage",
+    "_meta": {
+      "title": "Preview Image"
+    }
+  },
+  "40": {
+    "inputs": {
+      "PowerLoraLoaderHeaderWidget": {
+        "type": "PowerLoraLoaderHeaderWidget"
+      },
+      "lora_1": {
+        "on": true,
+        "lora": "SDXL\\zavy-ctsmtrc-sdxl.safetensors",
+        "strength": 0.2
+      },
+      "lora_2": {
+        "on": false,
+        "lora": "SDXL\\CLAYMATE_V2.03_.safetensors",
+        "strength": 0.5
+      },
+      "lora_3": {
+        "on": false,
+        "lora": "SDXL\\pixel-art-xl-v1.1.safetensors",
+        "strength": 0.5
+      },
+      "lora_4": {
+        "on": true,
+        "lora": "SDXL\\Dot_Art.safetensors",
+        "strength": 0.85
+      },
+      "➕ Add Lora": "",
+      "model": [
+        "4",
+        0
+      ],
+      "clip": [
+        "4",
+        1
+      ]
+    },
+    "class_type": "Power Lora Loader (rgthree)",
+    "_meta": {
+      "title": "Power Lora Loader (rgthree)"
+    }
+  },
+  "44": {
+    "inputs": {
+      "padding": 0,
+      "image": [
+        "50",
+        0
+      ],
+      "mask": [
+        "50",
+        3
+      ]
+    },
+    "class_type": "RonLayers/TrimBg: RonLayersTrimBgUltraV2",
+    "_meta": {
+      "title": "RonLayers/TrimBg: RonLayersTrimBgUltraV2"
+    }
+  },
+  "45": {
+    "inputs": {
+      "images": [
+        "44",
+        0
+      ]
+    },
+    "class_type": "PreviewImage",
+    "_meta": {
+      "title": "Preview Image"
+    }
+  },
+  "46": {
+    "inputs": {
+      "model_name": "isnet-general-use",
+      "image": [
+        "8",
+        0
+      ]
+    },
+    "class_type": "RembgNode_Mix",
+    "_meta": {
+      "title": "Remove Background ♾️Mixlab"
+    }
+  },
+  "50": {
+    "inputs": {
+      "width": 512,
+      "height": 512,
+      "scale_option": "overall",
+      "average_color": "on",
+      "fill_color": "#FFFFFF",
+      "image": [
+        "46",
+        1
+      ],
+      "mask": [
+        "46",
+        0
+      ]
+    },
+    "class_type": "ResizeImageMixlab",
+    "_meta": {
+      "title": "Resize Image ♾️Mixlab"
+    }
+  },
+  "53": {
+    "inputs": {
+      "images": [
+        "44",
+        3
+      ]
+    },
+    "class_type": "PreviewImage",
+    "_meta": {
+      "title": "Preview Image"
+    }
+  },
+  "62": {
+    "inputs": {
+      "webhook_url": "__WEBHOOK_URL__",
+      "frame_rate": 1,
+      "save_image": false,
+      "prompt_id": "__PROMPT_ID__",
+      "other_data": "{}",
+      "images": [
+        "44",
+        0
+      ]
+    },
+    "class_type": "UploadToWebHookHTTP",
+    "_meta": {
+      "title": "Send To Http Webhook"
+    }
+  }
+}

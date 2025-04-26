@@ -269,7 +269,7 @@ fn robots_movement_system(
                 transform.rotation = rotation;
             }
 
-            let max_step = 6.0 * time.delta_secs();
+            let max_step = 8.0 * time.delta_secs();
             let step = direction * distance.min(max_step);
 
             transform.translation += step;

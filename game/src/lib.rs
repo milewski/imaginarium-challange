@@ -15,6 +15,7 @@ use bevy_infinite_grid::InfiniteGridPlugin;
 use bevy_sprite3d::Sprite3dPlugin;
 use num_traits::Float;
 use wasm_bindgen::prelude::wasm_bindgen;
+use bevy_web_asset::WebAssetPlugin;
 
 mod js_bridge_plugin;
 mod mouse_plugin;
@@ -37,6 +38,7 @@ pub fn start_application(canvas: Option<String>) {
         .add_plugins(BuilderPlugin)
         .add_plugins(NetworkPlugin)
         .add_plugins((
+            WebAssetPlugin::default(),
             DefaultPlugins
                 .set(WindowPlugin {
                     primary_window: Some(Window {

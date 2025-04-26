@@ -23,6 +23,7 @@ bevy_mod_skinned_aabb = "0.1.0"
 bincode = { version = "2.0.1", features = ["derive"] }
 serde = { version = "1.0.219", features = ["derive"] }
 shared = { path = "../shared", features = ["wasm"] }
+bevy_web_asset = "0.10.1"
 
 url = "2.5.4"
 wasm-bindgen-futures = { version = "0.4.50", features = ["futures-core"] }

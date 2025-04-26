@@ -26,7 +26,7 @@ struct TokenHandle(Handle<Image>);
 pub struct Token;
 
 fn load_token(mut commands: Commands, asset_server: Res<AssetServer>) {
-    commands.insert_resource(TokenHandle(asset_server.load("scrap_002.png")));
+    commands.insert_resource(TokenHandle(asset_server.load("token.png")));
 }
 
 fn setup(
