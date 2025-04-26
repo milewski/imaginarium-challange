@@ -19,7 +19,7 @@ impl Engine {
     pub fn new() -> Result<Self, Box<dyn Error>> {
         let qdrant = Qdrant::from_url("http://127.0.0.1:6334").build()?;
         let ollama = Ollama::new("http://127.0.0.1:6334", 11434);
-        Ok(Self { qdrant, ollama }.initialize())
+        Ok(Self { qdrant, ollama })
     }
 
     pub async fn initialize(&self) -> Result<(), Box<dyn Error>> {

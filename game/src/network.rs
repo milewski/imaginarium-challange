@@ -40,7 +40,7 @@ impl Plugin for NetworkPlugin {
         app.add_systems(Update, websocket_send_event_system);
 
         wasm_bindgen_futures::spawn_local(async move {
-            let url = url::Url::parse("ws://192.168.31.114:9001").unwrap();
+            let url = url::Url::parse("ws://127.0.0.1:9001").unwrap();
             let mut stream = tokio_tungstenite_wasm::connect(url)
                 .await
                 .expect("failed to connect");

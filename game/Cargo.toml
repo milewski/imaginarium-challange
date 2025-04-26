@@ -6,6 +6,10 @@ edition = "2024"
 [profile.release]
 opt-level = 'z'
 
+[lib]
+name = "game"
+crate-type = ["cdylib", "rlib"]
+
 [dependencies]
 bevy = { version = "0.15.3" }
 bevy_rapier2d = "0.29.0"

@@ -67,6 +67,7 @@ pub enum SystemMessages {
     EnemyPosition { id: PlayerId, coordinate: Coordinate },
     EnemyDisconnected { id: PlayerId },
 
+    BuildMonumentRequest { prompt: String },
     BuildMonument { coordinate: Coordinate },
     MainPlayerPickedUpToken,
     MainPlayerSpawn { data: PlayerData },

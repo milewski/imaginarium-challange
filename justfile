@@ -4,5 +4,14 @@ serve:
 run:
     cargo run -p game --release
 
+run-server:
+    cargo run -p server --release
+
+build:
+    cd game && wasm-pack build --release --target web --no-opt --no-pack --out-dir frontend/wasm
+    cp -r assets ./game/frontend/public
+#    cargo build -p game --release --target wasm32-unknown-unknown
+#    just optimize
+
 optimize:
-    wasm-opt -Oz -o target/wasm32-unknown-unknown/release/game.optimized.wasm target/wasm32-unknown-unknown/release/game.wasm
+    wasm-opt -Oz -o build/game.optimized.wasm target/wasm32-unknown-unknown/release/game.wasm

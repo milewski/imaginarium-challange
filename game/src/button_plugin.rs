@@ -1,4 +1,3 @@
-use crate::{AssetsCache, get_random_between};
 use bevy::app::{App, Plugin, Update};
 use bevy::math::Vec2;
 use bevy::prelude::*;
@@ -14,14 +13,13 @@ pub struct Draggable {
 
 impl Plugin for ButtonPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(Startup, setup)
-            .add_systems(Update, button_system);
+        app.add_systems(Startup, setup);
+        app .add_systems(Update, button_system);
     }
 }
 
 fn button_system(
     mut commands: Commands,
-    assets: Res<AssetsCache>,
     mut sprite_params: Sprite3dParams,
 
     mut interaction_query: Query<
@@ -36,36 +34,13 @@ fn button_system(
     mut text_query: Query<&mut Text>,
     mut player_query: Query<&Player>,
 ) {
-    // let player = player_query.single();
-
     for player in player_query.iter() {
         for (interaction, mut color, mut border_color, children) in &mut interaction_query {
             let mut text = text_query.get_mut(children[0]).unwrap();
             match *interaction {
                 Interaction::Pressed => {
                     **text = "Press".to_string();
-
-                    commands.spawn((
-                        Sprite3dBuilder {
-                            image: assets.0[0].clone(),
-                            pixels_per_metre: 100.,
-                            alpha_mode: AlphaMode::Blend,
-                            unlit: true,
-                            pivot: Some(Vec2::new(0.5, 0.0)),
-                            double_sided: true,
-                            ..default()
-                        }
-                        .bundle(&mut sprite_params),
-                        Transform {
-                            translation: Vec3::new(
-                                0.0,
-                                0.0,
-                                0.0,
-                            ),
-                            rotation: Quat::from_rotation_y(45f32.to_radians()),
-                            ..default()
-                        },
-                    ));
+                    info!("user said! {:?}", crate::web_bridge::prompt("what is your name?"));
                 }
                 Interaction::Hovered => {
                     **text = "Hover".to_string();

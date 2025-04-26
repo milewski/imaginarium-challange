@@ -1,5 +1,4 @@
 use crate::robot::Player;
-use crate::AssetsCache;
 use bevy::prelude::*;
 use bevy::utils::HashMap;
 use bevy_sprite3d::{Sprite3dBuilder, Sprite3dParams};
@@ -10,18 +9,13 @@ pub struct BuilderPlugin;
 
 impl Plugin for BuilderPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(Update, build_monument_system.run_if(should_run));
+        app.add_systems(Update, build_monument_system);
         app.add_systems(Update, sync_monument_system);
     }
 }
 
-fn should_run(mouse: Res<ButtonInput<MouseButton>>) -> bool {
-    mouse.just_pressed(MouseButton::Right)
-}
-
 fn sync_monument_system(
     mut commands: Commands,
-    assets: Res<AssetsCache>,
     mut sprite_params: Sprite3dParams,
     mut events: EventReader<WebSocketMessageReceived>,
     asset_server: Res<AssetServer>,
@@ -29,9 +23,9 @@ fn sync_monument_system(
 ) {
     for event in events.read() {
         if let SystemMessages::BuildMonument { coordinate } = event.0 {
-            let handle: Handle<Image> = asset_server.load("funny-guy.png");
-            let monument = Monument { position: coordinate };
-            queue.entry(monument).or_insert(handle);
+            // let handle: Handle<Image> = asset_server.load("funny-guy.png");
+            // let monument = Monument { position: coordinate };
+            // queue.entry(monument).or_insert(handle);
         }
     }
 
@@ -44,25 +38,26 @@ fn sync_monument_system(
     }
 
     for (monument, handle) in ready_to_spawn {
-        spawn_monument(&mut commands, &assets, &mut sprite_params, &monument, handle.clone());
+        spawn_monument(&mut commands, &mut sprite_params, &monument, handle.clone());
         queue.remove(&monument);
     }
 }
 
 fn build_monument_system(
     mut commands: Commands,
-    assets: Res<AssetsCache>,
     mut sprite_params: Sprite3dParams,
     player: Query<&Transform, With<Player>>,
     mut event: EventWriter<SendWebSocketMessage>,
+    mouse: Res<ButtonInput<MouseButton>>,
 ) {
     // spawn_monument(&mut commands, &assets, &mut sprite_params, player.single().translation);
-    event.send(SendWebSocketMessage(SystemMessages::BuildMonument { coordinate: player.single().translation.into() }));
+    if mouse.just_pressed(MouseButton::Right) {
+        event.send(SendWebSocketMessage(SystemMessages::BuildMonumentRequest { prompt: "hello".into() }));
+    }
 }
 
 fn spawn_monument(
     commands: &mut Commands,
-    assets: &Res<AssetsCache>,
     sprite_params: &mut Sprite3dParams,
     monument: &Monument,
     image_handle: Handle<Image>,
