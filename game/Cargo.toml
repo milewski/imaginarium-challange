@@ -31,4 +31,5 @@ tokio-tungstenite-wasm = { version = "0.5.0", features = ["rustls-tls-native-roo
 futures-util = { version = "0.3.31", features = ["futures-sink"] }
 wasm-timer = "0.2.5"
 gloo-timers = { version = "0.3.0", features = ["futures"] }
+js-sys = "0.3.77"
 

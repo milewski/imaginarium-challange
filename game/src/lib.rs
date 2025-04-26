@@ -1,6 +1,6 @@
 #![allow(warnings)]
 use crate::builder::BuilderPlugin;
-use crate::button_plugin::ButtonPlugin;
+use crate::js_bridge_plugin::JsBridgePlugin;
 use crate::camera::CameraController;
 use crate::network::NetworkPlugin;
 use crate::robot::RobotPlugin;
@@ -16,7 +16,7 @@ use bevy_sprite3d::Sprite3dPlugin;
 use num_traits::Float;
 use wasm_bindgen::prelude::wasm_bindgen;
 
-mod button_plugin;
+mod js_bridge_plugin;
 mod mouse_plugin;
 mod network;
 mod robot;
@@ -24,13 +24,12 @@ mod tokens;
 mod builder;
 mod ui;
 mod camera;
-mod web_bridge;
 
 #[wasm_bindgen]
 pub fn start_application(canvas: Option<String>) {
     App::new()
         .add_plugins(UIPlugin)
-        .add_plugins(ButtonPlugin)
+        .add_plugins(JsBridgePlugin)
         .add_plugins(RobotPlugin)
         .add_plugins(BuilderPlugin)
         .add_plugins(NetworkPlugin)

@@ -1,5 +1,5 @@
 #![allow(warnings)]
-mod button_plugin;
+mod js_bridge_plugin;
 mod mouse_plugin;
 mod network;
 mod robot;

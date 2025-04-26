@@ -2670,6 +2670,7 @@ dependencies = [
  "fastrand",
  "futures-util",
  "gloo-timers",
+ "js-sys",
  "num-traits",
  "serde",
  "shared",
