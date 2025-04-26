@@ -28,9 +28,12 @@ mod camera;
 #[wasm_bindgen]
 pub fn start_application(canvas: Option<String>) {
     App::new()
-        .add_plugins(UIPlugin)
         .add_plugins(JsBridgePlugin)
-        .add_plugins(RobotPlugin)
+        .add_plugins((
+            RobotPlugin,
+            TokensPlugin,
+            UIPlugin,
+        ))
         .add_plugins(BuilderPlugin)
         .add_plugins(NetworkPlugin)
         .add_plugins((
@@ -50,7 +53,6 @@ pub fn start_application(canvas: Option<String>) {
             InfiniteGridPlugin,
         ))
         .add_plugins(CameraController)
-        .add_plugins(TokensPlugin)
         .add_plugins(Sprite3dPlugin)
         // .add_plugins(FoxPlugin)
         // .add_plugins(PanOrbitCameraPlugin)

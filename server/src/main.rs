@@ -21,11 +21,11 @@ struct World {
 
 impl World {
     pub async fn get(&self, id: PlayerId) -> Option<PlayerData> {
-        self.inner.lock().await.get(&id).copied()
+        self.inner.lock().await.get(&id).cloned()
     }
 
     pub async fn players(&self) -> Vec<PlayerData> {
-        self.inner.lock().await.values().copied().collect()
+        self.inner.lock().await.values().cloned().collect()
     }
 
     pub async fn monuments(&self) -> Vec<Monument> {
@@ -47,6 +47,15 @@ impl World {
     pub async fn update_coordinate(&self, id: PlayerId, coordinate: Coordinate) {
         if let Some(data) = self.inner.lock().await.get_mut(&id) {
             data.position = coordinate
+        }
+    }
+
+    pub async fn increment_balance(&self, id: PlayerId) -> u32 {
+        if let Some(data) = self.inner.lock().await.get_mut(&id) {
+            data.balance += 1;
+            data.balance
+        } else {
+            0
         }
     }
 }
@@ -205,13 +214,18 @@ async fn handle_player_communication(scope: ScopedManager, world: World, message
                 id: 0,
                 description: "test".into(),
                 asset: "test".into(),
-                position: coordinate
+                position: coordinate,
             }).await;
         }
         SystemMessages::MainPlayerPickedUpToken => {
-            if let Some(mut player) = world.get(scope.id).await {
-                player.balance += 1;
-            };
+            let balance = world.increment_balance(scope.id).await;
+
+            scope.reply(SystemMessages::MainPlayerCurrentBalance { balance }).await;
+
+            // if let Some(mut player) = world.get_mut(scope.id).await {
+            //     player.balance += 1;
+            //     scope.reply(SystemMessages::MainPlayerCurrentBalance { balance: player.balance }).await;
+            // };
         }
         _ => {}
     }
@@ -221,10 +235,10 @@ async fn on_player_connect(scoped: ScopedManager, world: World) {
     if let Some(data) = world.get(scoped.id).await {
 
         // Spawn the main player
-        let player = scoped.reply(SystemMessages::MainPlayerSpawn { data });
+        let player = scoped.reply(SystemMessages::MainPlayerSpawn { data: data.clone() });
 
         // Then notify everyone that there is a new boss in town
-        let enemy = scoped.broadcast(SystemMessages::EnemyPlayerSpawn { data });
+        let enemy = scoped.broadcast(SystemMessages::EnemyPlayerSpawn { data: data.clone() });
 
         for data in world.players().await {
             if data.id != scoped.id {

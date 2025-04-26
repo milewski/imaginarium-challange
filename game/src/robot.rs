@@ -18,6 +18,7 @@ use shared::{PlayerData, PlayerId, SystemMessages};
 
 use crate::network::{SendWebSocketMessage, WebSocketMessageReceived};
 use crate::tokens::Token;
+use crate::ui::{UiInputBlocker};
 
 pub const ROBOT_GLB_PATH: &str = "RobotExpressive.glb";
 
@@ -30,8 +31,8 @@ pub struct Robot {
     animation: Option<PlayerAnimation>,
 }
 
-#[derive(Component, Debug, Copy, Clone)]
-enum PlayerKind {
+#[derive(Component, Debug, Clone)]
+pub enum PlayerKind {
     MainPlayer(PlayerData),
     Enemy(PlayerData),
 }
@@ -40,6 +41,8 @@ impl Plugin for RobotPlugin {
     fn build(&self, app: &mut App) {
         // app.add_systems(Startup, initialize_animations_system);
         app.add_systems(Update, listen_to_player_spawn_events_system);
+        app.add_systems(Update, listen_to_player_balance_update);
+
         app.add_systems(Update, remove_disconnected_players_system);
         // app.add_systems(Update, start_robot_idle_animation);
         app.add_systems(Update, robots_movement_system);
@@ -47,8 +50,7 @@ impl Plugin for RobotPlugin {
         app.add_systems(Update, move_robot_animation_system);
         // app.add_systems(Update, robot_animation_movement_system);
         app.add_systems(
-            Update,
-            calculate_player_movement_target_system.run_if(should_run),
+            Update, calculate_player_movement_target_system.run_if(should_run),
         );
     }
 }
@@ -127,12 +129,29 @@ fn listen_to_player_spawn_events_system(
     mut events: EventReader<WebSocketMessageReceived>,
 ) {
     for event in events.read() {
-        match event.0 {
+        match &event.0 {
             SystemMessages::EnemyPlayerSpawn { data } => {
-                spawn_player(&asset_server, &mut commands, &mut graphs, PlayerKind::Enemy(data))
+                spawn_player(&asset_server, &mut commands, &mut graphs, PlayerKind::Enemy(data.clone()))
             }
             SystemMessages::MainPlayerSpawn { data } => {
-                spawn_player(&asset_server, &mut commands, &mut graphs, PlayerKind::MainPlayer(data))
+                spawn_player(&asset_server, &mut commands, &mut graphs, PlayerKind::MainPlayer(data.clone()))
+            }
+            _ => continue
+        }
+    }
+}
+
+fn listen_to_player_balance_update(
+    mut events: EventReader<WebSocketMessageReceived>,
+    mut robots: Query<&mut PlayerKind, With<Player>>,
+) {
+    for event in events.read() {
+        match event.0 {
+            SystemMessages::MainPlayerCurrentBalance { balance } => {
+                if let PlayerKind::MainPlayer(ref mut data) = *robots.single_mut() {
+                    info!("mutated {}", balance);
+                    data.balance = balance;
+                }
             }
             _ => continue
         }
@@ -160,7 +179,7 @@ fn spawn_player(
 
     let transform = Transform {
         scale: Vec3::splat(0.8),
-        translation: match player_kind {
+        translation: match &player_kind {
             PlayerKind::MainPlayer(data) => data.position.to_vec3(),
             PlayerKind::Enemy(data) => data.position.to_vec3(),
         },
@@ -168,7 +187,7 @@ fn spawn_player(
     };
 
     commands
-        .spawn((animations, robot, transform, mesh, player_kind))
+        .spawn((animations, robot, transform, mesh, player_kind.clone()))
         .insert_if(Player::default(), || match player_kind {
             PlayerKind::MainPlayer(_) => true,
             PlayerKind::Enemy(_) => false
@@ -177,8 +196,8 @@ fn spawn_player(
 }
 
 /// Only run when user click and there is a player spawn in the world
-fn should_run(mouse: Res<ButtonInput<MouseButton>>, query: Query<(), With<Player>>) -> bool {
-    mouse.just_pressed(MouseButton::Left) && query.is_empty() == false
+fn should_run(mouse: Res<ButtonInput<MouseButton>>, query: Query<(), With<Player>>, blocker: Res<UiInputBlocker>) -> bool {
+    mouse.just_pressed(MouseButton::Left) && query.is_empty() == false && blocker.0 == false
 }
 
 fn remove_disconnected_players_system(
@@ -217,7 +236,15 @@ fn listen_for_enemy_movement_system(
     }
 }
 
-fn robots_movement_system(mut robots: Query<(&mut Robot, &mut Transform)>, time: Res<Time>) {
+fn robots_movement_system(
+    mut robots: Query<(&mut Robot, &mut Transform)>,
+    time: Res<Time>,
+    blocker: Res<UiInputBlocker>,
+) {
+    if blocker.0 {
+        return;
+    }
+
     for (mut robot, mut transform) in robots.iter_mut() {
         if let Some(target) = robot.target {
             let to_target = target - transform.translation;
@@ -361,7 +388,7 @@ fn find_closest_clear_path(start: &Vec3, end: &Vec3, elements: &Vec<&Vec3>) -> V
 
             // Project onto (1, -1) direction for isometric horizontal line
             let iso_horizontal = (dx - dz) / 2.0;   // movement along the horizontal isometric line
-            let iso_vertical   = (dx + dz) / 2.0;   // perpendicular offset (vertical band thickness)
+            let iso_vertical = (dx + dz) / 2.0;   // perpendicular offset (vertical band thickness)
 
             // Check if inside the isometric-aligned rectangle
             if iso_horizontal.abs() <= band_half_length &&

@@ -58,11 +58,11 @@ impl Plugin for JsBridgePlugin {
         app.insert_resource(JsBridgeSender(upstream_sender.clone()));
         app.add_systems(Update, js_bridge_send_event_system);
 
-        wasm_bindgen_futures::spawn_local(async move {
+        spawn_local(async move {
             while let Some(message) = upstream_receiver.recv().await {
                 let downstream_sender = downstream_sender.clone();
 
-                wasm_bindgen_futures::spawn_local(async move {
+                spawn_local(async move {
                     let response: JSBridgeMessages = match message {
                         JSBridgeMessages::CallOpenModal => call_show_modal().await,
                         _ => JSBridgeMessages::None

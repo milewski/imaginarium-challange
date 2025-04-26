@@ -37,7 +37,7 @@ impl PlayerId {
     }
 }
 
-#[derive(Debug, Copy, Clone, Hash, PartialEq, Eq, bincode::Encode, bincode::Decode)]
+#[derive(Debug, Clone, Hash, PartialEq, Eq, bincode::Encode, bincode::Decode)]
 pub struct PlayerData {
     pub id: PlayerId,
     pub balance: u32,
@@ -70,6 +70,7 @@ pub enum SystemMessages {
     BuildMonumentRequest { prompt: String },
     BuildMonument { coordinate: Coordinate },
     MainPlayerPickedUpToken,
+    MainPlayerCurrentBalance { balance: u32 },
     MainPlayerSpawn { data: PlayerData },
     EnemyPlayerSpawn { data: PlayerData },
 }
