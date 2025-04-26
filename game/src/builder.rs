@@ -2,9 +2,11 @@ use crate::js_bridge_plugin::{JSBridgeMessages, JsBridgeMessageReceived};
 use crate::network::{SendWebSocketMessage, WebSocketMessageReceived};
 use bevy::prelude::*;
 use bevy::utils::HashMap;
+use bevy_kira_audio::{Audio, AudioControl};
 use bevy_sprite3d::{Sprite3dBuilder, Sprite3dParams};
 use futures_util::SinkExt;
 use shared::{Monument, SystemMessages};
+use crate::sound_effects::AudioCache;
 
 pub struct BuilderPlugin;
 
@@ -64,6 +66,8 @@ fn sync_monument_system(
     mut events: EventReader<WebSocketMessageReceived>,
     asset_server: Res<AssetServer>,
     mut queue: Local<HashMap<u32, (Monument, Handle<Image>)>>,
+    audio_cache: Res<AudioCache>,
+    audio: Res<Audio>,
 ) {
     for event in events.read() {
         if let SystemMessages::BuildMonument { monument } = &event.0 {
@@ -82,6 +86,7 @@ fn sync_monument_system(
     for (monument, handle) in ready_to_spawn {
         queue.remove(&monument.id);
         spawn_monument(&mut commands, &mut sprite_params, monument, handle.clone());
+        audio.play(audio_cache.falling.clone());
     }
 }
 
@@ -119,6 +124,7 @@ fn spawn_monument(
         },
         monument,
     ));
+
 }
 
 fn animate_monument_system(

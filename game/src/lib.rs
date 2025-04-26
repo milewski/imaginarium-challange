@@ -16,6 +16,10 @@ use bevy_sprite3d::Sprite3dPlugin;
 use num_traits::Float;
 use wasm_bindgen::prelude::wasm_bindgen;
 use bevy_web_asset::WebAssetPlugin;
+use bevy_kira_audio::Audio;
+use bevy_kira_audio::AudioPlugin;
+use bevy_kira_audio::AudioControl;
+use crate::sound_effects::SoundEffectsPlugin;
 
 mod js_bridge_plugin;
 mod mouse_plugin;
@@ -25,18 +29,19 @@ mod tokens;
 mod builder;
 mod ui;
 mod camera;
+mod sound_effects;
 
 #[wasm_bindgen]
 pub fn start_application(canvas: Option<String>) {
     App::new()
         .add_plugins(JsBridgePlugin)
         .add_plugins((
+            NetworkPlugin,
             RobotPlugin,
             TokensPlugin,
             UIPlugin,
+            BuilderPlugin,
         ))
-        .add_plugins(BuilderPlugin)
-        .add_plugins(NetworkPlugin)
         .add_plugins((
             WebAssetPlugin::default(),
             DefaultPlugins
@@ -52,8 +57,10 @@ pub fn start_application(canvas: Option<String>) {
                     meta_check: AssetMetaCheck::Never,
                     ..default()
                 }),
+            AudioPlugin,
             InfiniteGridPlugin,
         ))
+        .add_plugins(SoundEffectsPlugin)
         .add_plugins(CameraController)
         .add_plugins(Sprite3dPlugin)
         // .add_plugins(FoxPlugin)
@@ -66,10 +73,5 @@ pub fn start_application(canvas: Option<String>) {
         // ))
         // .add_systems(Update, init_animations)
         .run();
-}
-
-fn get_random_between<T: Float>(min: T, max: T) -> T {
-    let t: f32 = fastrand::f32(); // Still f32
-    min + (max - min) * T::from(t).unwrap()
 }
 

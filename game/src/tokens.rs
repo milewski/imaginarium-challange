@@ -8,6 +8,9 @@ use bevy::prelude::{default, resource_exists, AlphaMode, Commands, Component, En
 use bevy_sprite3d::{Sprite3dBuilder, Sprite3dParams};
 use shared::SystemMessages;
 use crate::network::SendWebSocketMessage;
+use bevy_kira_audio::Audio;
+use bevy_kira_audio::AudioControl;
+use crate::sound_effects::AudioCache;
 
 pub struct TokensPlugin;
 
@@ -60,7 +63,9 @@ fn pickup_token_system(
     mut commands: Commands,
     query: Query<(Entity, &Transform), With<Token>>,
     player_query: Query<&Transform, With<Player>>,
-    mut event: EventWriter<SendWebSocketMessage>
+    mut event: EventWriter<SendWebSocketMessage>,
+    asset_server: Res<AssetServer>, audio: Res<Audio>,
+    assets: Res<AudioCache>,
 ) {
     for player_transform in player_query.iter() {
         for (token_entity, token_transform) in query.iter() {
@@ -70,6 +75,7 @@ fn pickup_token_system(
             if distance < pickup_radius {
                 commands.entity(token_entity).despawn();
                 event.send(SendWebSocketMessage(SystemMessages::MainPlayerPickedUpToken));
+                audio.play(assets.coin_pickup.clone());
             }
         }
     }

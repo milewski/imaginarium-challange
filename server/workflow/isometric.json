@@ -1,7 +1,7 @@
 {
   "3": {
     "inputs": {
-      "seed": 11100000000000000000000111,
+      "seed": 1110000111,
       "steps": 20,
       "cfg": 3,
       "sampler_name": "lcm",
@@ -105,7 +105,7 @@
   },
   "28": {
     "inputs": {
-      "text": "isometric, (dotart:1.5), illustration, 8bit style, pixel art, white background, 45 degree angle"
+      "text": "isometric, dotart, solid background, 45 degree angle"
     },
     "class_type": "ttN text",
     "_meta": {
@@ -123,40 +123,11 @@
       "text_b": [
         "28",
         0
-      ],
-      "text_c": ""
+      ]
     },
     "class_type": "Text Concatenate",
     "_meta": {
       "title": "Text Concatenate"
-    }
-  },
-  "34": {
-    "inputs": {
-      "lora_name": "SDXL\\zavy-ctsmtrc-sdxl.safetensors",
-      "strength_model": 0.75,
-      "model": [
-        "4",
-        0
-      ]
-    },
-    "class_type": "LoraLoaderModelOnly",
-    "_meta": {
-      "title": "LoraLoaderModelOnly"
-    }
-  },
-  "35": {
-    "inputs": {
-      "lora_name": "SDXL\\CLAYMATE_V2.03_.safetensors",
-      "strength_model": 0.5,
-      "model": [
-        "34",
-        0
-      ]
-    },
-    "class_type": "LoraLoaderModelOnly",
-    "_meta": {
-      "title": "LoraLoaderModelOnly"
     }
   },
   "38": {
@@ -179,22 +150,12 @@
       "lora_1": {
         "on": true,
         "lora": "SDXL\\zavy-ctsmtrc-sdxl.safetensors",
-        "strength": 0.2
+        "strength": 0.5
       },
       "lora_2": {
-        "on": false,
-        "lora": "SDXL\\CLAYMATE_V2.03_.safetensors",
-        "strength": 0.5
-      },
-      "lora_3": {
-        "on": false,
-        "lora": "SDXL\\pixel-art-xl-v1.1.safetensors",
-        "strength": 0.5
-      },
-      "lora_4": {
         "on": true,
         "lora": "SDXL\\Dot_Art.safetensors",
-        "strength": 0.85
+        "strength": 1.0
       },
       "➕ Add Lora": "",
       "model": [

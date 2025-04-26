@@ -11,12 +11,14 @@ use bevy::math::{Quat, Vec3};
 use bevy::pbr::StandardMaterial;
 use bevy::prelude::*;
 use bevy::scene::SceneInstanceReady;
+use bevy_kira_audio::{Audio, AudioControl};
 use bevy_rapier2d::geometry::Collider;
 use bevy_sprite3d::Sprite3d;
 
 use shared::{PlayerData, PlayerId, SystemMessages};
 
 use crate::network::{SendWebSocketMessage, WebSocketMessageReceived};
+use crate::sound_effects::AudioCache;
 use crate::tokens::Token;
 use crate::ui::{handle_build_monument_button_state_system, UiInputBlocker};
 
@@ -62,6 +64,8 @@ fn move_robot_animation_system(
     children: Query<&Children>,
     mut robots: Query<(Entity, &mut Robot)>,
     mut query: Query<(&mut AnimationPlayer, &mut AnimationTransitions)>,
+    audio_cache: Res<AudioCache>,
+    audio: Res<Audio>,
 ) {
     'root: for (entity, mut robot) in robots.iter_mut() {
         if let Some(animation) = robot.animation {
@@ -75,8 +79,8 @@ fn move_robot_animation_system(
                             PlayerAnimation::Jumping.to_index(),
                             Duration::from_millis(250),
                         );
-
                         robot.animation_timer = Some(Timer::from_seconds(0.708, TimerMode::Once));
+                        audio.play(audio_cache.jumping.clone());
                     }
 
                     if let Some(timer) = robot.animation_timer.as_mut() {
