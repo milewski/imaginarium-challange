@@ -9,7 +9,9 @@ COPY . /srv
 
 WORKDIR /srv
 
-RUN cargo build --release -p server
+RUN --mount=type=secret,id=API_SERVER_ADDRESS,env=API_SERVER_ADDRESS \
+    --mount=type=secret,id=COMFYUI_HOST_URL,env=COMFYUI_HOST_URL \
+    cargo build --release -p server
 
 FROM debian:bookworm-slim
 

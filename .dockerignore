@@ -3,4 +3,5 @@ game/frontend/wasm
 game/frontend/dist
 target
 assets
+traefik
 *.dockerfile

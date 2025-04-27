@@ -2,6 +2,7 @@ use bevy::prelude::*;
 use bincode::config::standard;
 use futures_util::{SinkExt, StreamExt};
 use gloo_timers::future::TimeoutFuture;
+use std::env;
 use tokio::sync::mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender};
 use tokio_tungstenite_wasm::Message;
 
@@ -40,7 +41,9 @@ impl Plugin for NetworkPlugin {
         app.add_systems(Update, websocket_send_event_system);
 
         wasm_bindgen_futures::spawn_local(async move {
-            let url = url::Url::parse("ws://127.0.0.1:9001").unwrap();
+            let websocket_server_address = env!("WEBSOCKET_SERVER_ADDRESS");
+
+            let url = url::Url::parse(&websocket_server_address).unwrap();
             let mut stream = tokio_tungstenite_wasm::connect(url)
                 .await
                 .expect("failed to connect");
@@ -90,7 +93,7 @@ fn websocket_send_event_system(mut events: EventReader<SendWebSocketMessage>, se
     }
 }
 
-fn websocket_event_bridge_system(mut receiver: ResMut<WebSocketReceiver>, mut writer: EventWriter<WebSocketMessageReceived>, ) {
+fn websocket_event_bridge_system(mut receiver: ResMut<WebSocketReceiver>, mut writer: EventWriter<WebSocketMessageReceived>) {
     while let Ok(message) = receiver.0.try_recv() {
         writer.send(WebSocketMessageReceived(message));
     }

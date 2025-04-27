@@ -5,13 +5,17 @@ run:
     cargo run -p game --release
 
 run-server:
-    cargo run -p server --release
+   API_SERVER_ADDRESS=https://api.docker.localhost \
+   COMFYUI_HOST_URL=http://192.168.50.230:8188 \
+   cargo run -p server --release
 
 start:
     cd game/frontend && yarn dev
 
 build:
-    cd game && wasm-pack build --release --target web --no-opt --no-pack --out-dir frontend/wasm
+    cd game && \
+    WEBSOCKET_SERVER_ADDRESS=wss://websocket.docker.localhost \
+    wasm-pack build --release --target web --no-opt --no-pack --out-dir frontend/wasm
     cp -r assets ./game/frontend/public
 
 build-optimized:

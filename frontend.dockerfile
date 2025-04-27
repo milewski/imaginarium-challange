@@ -7,7 +7,8 @@ COPY . /srv
 
 WORKDIR /srv/game
 
-RUN wasm-pack build --release --target web --no-opt --no-pack --out-dir /srv/game/frontend/wasm
+RUN --mount=type=secret,id=WEBSOCKET_SERVER_ADDRESS,env=WEBSOCKET_SERVER_ADDRESS \
+  wasm-pack build --release --target web --no-opt --no-pack --out-dir /srv/game/frontend/wasm
 
 FROM node:23-alpine3.20 AS frontend
 

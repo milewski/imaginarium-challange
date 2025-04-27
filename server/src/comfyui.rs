@@ -16,7 +16,7 @@ impl ComfyUI {
 
         let prompt_id = id.to_string();
         let workflow = WORKFLOW
-            .replace("__WEBHOOK_URL__", "http://127.0.0.1:3000/generation")
+            .replace("__WEBHOOK_URL__", format!("{}/generation", env!("API_SERVER_ADDRESS")).as_str())
             .replace("1110000111", prompt_id.as_str())
             .replace("__PROMPT__", prompt)
             .replace("__PROMPT_ID__", prompt_id.as_str());
@@ -26,7 +26,7 @@ impl ComfyUI {
         ]);
 
         let _ = reqwest::Client::new()
-            .post("http://192.168.50.230:8188/api/prompt")
+            .post(format!("{}/api/prompt", env!("COMFYUI_HOST_URL")))
             .json(&map)
             .send()
             .await?;

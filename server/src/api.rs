@@ -41,7 +41,7 @@ async fn handle_payload(mut multipart: Multipart) -> Result<(u32, String), Box<d
             name if name == "file" => {
                 let id = uuid::Uuid::new_v4();
                 tokio::fs::write(format!("./assets/monuments/{}.png", id), data).await.unwrap();
-                map.insert(name.to_string(), format!("http://127.0.0.1:3000/assets/monuments/{}.png", id));
+                map.insert(name.to_string(), format!("{}/assets/monuments/{}.png", env!("API_SERVER_ADDRESS"), id));
             }
             name if name == "prompt_id" => {
                 map.insert(name.to_string(), String::from_utf8_lossy(&data).to_string());
