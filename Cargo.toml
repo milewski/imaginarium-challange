@@ -8,9 +8,9 @@ resolver = "2"
 members = ["game", "server", "shared"]
 
 [profile.release]
-#opt-level = 'z' # 48.95mb
-#lto = true
-#codegen-units = 1
+opt-level = 'z' # 48.95mb
+lto = true
+codegen-units = 1
 
 #[dependencies]
 #bevy = "0.15.3"

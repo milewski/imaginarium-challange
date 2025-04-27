@@ -13,6 +13,10 @@ start:
 build:
     cd game && wasm-pack build --release --target web --no-opt --no-pack --out-dir frontend/wasm
     cp -r assets ./game/frontend/public
+
+build-optimized:
+    cd game && wasm-pack build --release --target web --no-pack --out-dir frontend/wasm
+    cp -r assets ./game/frontend/public
 #    cargo build -p game --release --target wasm32-unknown-unknown
 #    just optimize
 
