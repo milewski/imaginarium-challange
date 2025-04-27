@@ -40,6 +40,7 @@ async fn handle_payload(mut multipart: Multipart) -> Result<(u32, String), Box<d
         match name.as_str() {
             name if name == "file" => {
                 let id = uuid::Uuid::new_v4();
+                tokio::fs::create_dir_all("./assets/monuments").await.unwrap();
                 tokio::fs::write(format!("./assets/monuments/{}.png", id), data).await.unwrap();
                 map.insert(name.to_string(), format!("{}/assets/monuments/{}.png", env!("API_SERVER_ADDRESS"), id));
             }

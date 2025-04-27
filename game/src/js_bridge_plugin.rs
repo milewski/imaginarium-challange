@@ -75,7 +75,7 @@ impl Plugin for JsBridgePlugin {
             }
         });
 
-        app.add_systems(Update, button_system);
+        // app.add_systems(Update, button_system);
     }
 }
 
@@ -85,15 +85,15 @@ fn js_event_bridge_system(mut receiver: ResMut<JsBridgeReceiver>, mut writer: Ev
     }
 }
 
-fn button_system(
-    mut event: EventWriter<SendJsBridgeMessage>,
-    mouse: Res<ButtonInput<MouseButton>>,
-) {
-    if mouse.just_pressed(MouseButton::Right) {
-        info!("sending");
-        event.send(SendJsBridgeMessage(JSBridgeMessages::CallOpenModal));
-    }
-}
+// fn button_system(
+//     mut event: EventWriter<SendJsBridgeMessage>,
+//     mouse: Res<ButtonInput<MouseButton>>,
+// ) {
+//     if mouse.just_pressed(MouseButton::Right) {
+//         info!("sending");
+//         event.send(SendJsBridgeMessage(JSBridgeMessages::CallOpenModal));
+//     }
+// }
 
 fn debug_js_bridge_messages_system(mut events: EventReader<JsBridgeMessageReceived>) {
     for event in events.read() {
