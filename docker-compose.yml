@@ -1,29 +1,11 @@
 services:
-  qdrant:
-    image: qdrant/qdrant:v1.14.0
-    restart: unless-stopped
-    ports:
-      - 6333:6333
-      - 6334:6334
-    volumes:
-      - qdrant-data:/qdrant/storage
+  wasm:
+    build:
+      context: .
+      dockerfile: frontend.dockerfile
 
-  ollama:
-    image: ollama/ollama:0.6.6
-    restart: unless-stopped
-    ports:
-      - 11434:11434
-    volumes:
-      - ollama-data:/root/.ollama
+  server:
+    build:
+      context: .
+      dockerfile: backend.dockerfile
 
-  redis:
-    image: redis:7.4-alpine3.21
-    command: redis-server --appendonly yes
-    restart: unless-stopped
-    volumes:
-      - redis-data:/data
-
-volumes:
-  qdrant-data:
-  redis-data:
-  ollama-data:

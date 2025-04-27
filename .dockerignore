@@ -1,0 +1,6 @@
+game/frontend/node_modules
+game/frontend/wasm
+game/frontend/dist
+target
+assets
+*.dockerfile

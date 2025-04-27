@@ -1,11 +1,3 @@
-<script setup lang="ts">
-
-    import { Drawer, DrawerContent, DrawerDescription, DrawerFooter, DrawerHeader, DrawerTitle } from '@/components/ui/drawer'
-    import { Textarea } from '@/components/ui/textarea'
-    import { Button } from '@/components/ui/button'
-
-</script>
-
 <template>
 
     <div class="tetrominos z-50">
