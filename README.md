@@ -19,4 +19,4 @@ The project is organized into three folders:
 
 For a more detailed overview, including screenshots, you can read the submission sent to the challenge here:
 
-https://dev.to/milewski/imaginarium-328m-temp-slug-1239349
+https://dev.to/milewski/imaginarium-build-explore-leave-your-mark-1p3i
