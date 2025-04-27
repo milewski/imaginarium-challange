@@ -1,5 +1,3 @@
-# Imaginarium
-
 <h1 align="center">Imaginarium</h1>
 <p align="center">
 Build. Explore. Leave Your Mark.
