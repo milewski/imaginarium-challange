@@ -2,9 +2,13 @@
 
 <h1 align="center">Imaginarium</h1>
 <p align="center">
-Create Magical Illustrated Children's Stories with AI
+Build. Explore. Leave Your Mark.
 </p>
 <p align="center"><img width="1000" src="https://github.com/user-attachments/assets/f298f769-dd71-4e09-b95a-0d8261e1eb6c"></p>
+
+
+https://github.com/user-attachments/assets/7890823f-c500-458e-9061-b4435e316555
+
 
 This is the main repository for my submission to [Alibaba Cloud Web Game Challenge](https://dev.to/challenges/alibaba).
 
