@@ -29,11 +29,21 @@ build-optimized:
 optimize:
     wasm-opt -Oz -o build/game.optimized.wasm target/wasm32-unknown-unknown/release/game.wasm
 
-deploy-server:
+deploy-wasm:
+    cd game && wasm-pack build --release --target web --no-pack --out-dir frontend/wasm
+    cd game/frontend && yarn build
+
+##### Cleanned
+start-server:
+    cargo run -p server --release
+
+start-game:
+    cd game && wasm-pack build --release --target web --no-opt --no-pack --out-dir frontend/wasm
+    cd game/frontend && yarn && yarn dev
+
+build-server:
     cargo build -p server --release
     docker build -f docker/server.dockerfile -t $REGISTRY/imaginarium/server:latest ./target/release
     docker push $REGISTRY/imaginarium/server:latest
 
-deploy-wasm:
-    cd game && wasm-pack build --release --target web --no-pack --out-dir frontend/wasm
-    cd game/frontend && yarn build
+    ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIBRjcyXLvY4Q2uys3E4yNnZUYfYtKJMojWhMlMWP7TU4 milewski@Rafaels-iMac.local

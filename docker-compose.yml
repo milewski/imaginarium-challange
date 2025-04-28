@@ -28,20 +28,20 @@ services:
       - traefik.http.routers.traefik.tls=true
       - traefik.http.services.traefik.loadBalancer.server.port=8080
 
-  wasm:
-    build:
-      context: .
-      dockerfile: frontend.dockerfile
-      secrets:
-        - WEBSOCKET_SERVER_ADDRESS
-    networks:
-      - traefik-network
-    labels:
-      - traefik.enable=true
-      - traefik.http.routers.game.entryPoints=web-secure
-      - traefik.http.routers.game.rule=Host(`game.docker.localhost`)
-      - traefik.http.routers.game.tls=true
-      - traefik.http.services.game.loadBalancer.server.port=80
+#  wasm:
+#    build:
+#      context: .
+#      dockerfile: frontend.dockerfile
+#      secrets:
+#        - WEBSOCKET_SERVER_ADDRESS
+#    networks:
+#      - traefik-network
+#    labels:
+#      - traefik.enable=true
+#      - traefik.http.routers.game.entryPoints=web-secure
+#      - traefik.http.routers.game.rule=Host(`game.docker.localhost`)
+#      - traefik.http.routers.game.tls=true
+#      - traefik.http.services.game.loadBalancer.server.port=80
 
   server:
     build:

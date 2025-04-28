@@ -3,12 +3,13 @@ use bevy::math::Vec3;
 use bevy::prelude::Component;
 use bincode::config::standard;
 use bincode::error::DecodeError;
+use serde::{Deserialize, Serialize};
 #[cfg(target_arch = "wasm32")]
 use tokio_tungstenite_wasm::Message;
 #[cfg(not(target_arch = "wasm32"))]
 use tungstenite::Message;
 
-#[derive(Debug, Default, Copy, Clone, Hash, PartialEq, Eq, bincode::Encode, bincode::Decode)]
+#[derive(Debug, Default, Copy, Clone, Hash, PartialEq, Eq, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub struct Coordinate {
     pub x: i32,
     pub y: i32,
@@ -52,7 +53,7 @@ pub struct PlayerData {
     pub position: Coordinate,
 }
 
-#[derive(Component, Debug, Clone, Hash, PartialEq, Eq, bincode::Encode, bincode::Decode)]
+#[derive(Component, Debug, Clone, Hash, PartialEq, Eq, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub struct Monument {
     pub id: u32,
     pub asset: String,

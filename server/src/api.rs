@@ -1,11 +1,16 @@
-use crate::{Manager, World};
+use std::collections::HashMap;
+
 use axum::extract::{Multipart, State};
 use axum::http::Method;
-use axum::routing::post;
 use axum::Router;
-use shared::SystemMessages;
-use std::collections::HashMap;
+use axum::routing::post;
+use tokio::fs::OpenOptions;
 use tower_http::cors::{Any, CorsLayer};
+
+use shared::{Monument, SystemMessages};
+
+use crate::manager::Manager;
+use crate::world::World;
 
 pub async fn build_server(manager: Manager, world: World) {
     let app = Router::new()
@@ -19,6 +24,8 @@ pub async fn build_server(manager: Manager, world: World) {
         );
 
     let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
+
+    println!("api server starting at {}", "http://0.0.0.0:3000");
 
     axum::serve(listener, app).await.unwrap();
 }

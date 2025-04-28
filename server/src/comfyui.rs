@@ -16,7 +16,7 @@ impl ComfyUI {
 
         let prompt_id = id.to_string();
         let workflow = WORKFLOW
-            .replace("__WEBHOOK_URL__", format!("{}/generation", env!("API_SERVER_ADDRESS")).as_str())
+            .replace("__WEBHOOK_URL__", format!("{}/generation", env!("COMFYUI_CALLBACK_HOST_URL")).as_str())
             .replace("1110000111", prompt_id.as_str())
             .replace("__PROMPT__", prompt)
             .replace("__PROMPT_ID__", prompt_id.as_str());
