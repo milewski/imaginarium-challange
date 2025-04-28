@@ -43,5 +43,5 @@ start-game:
 
 build-server:
     cargo build -p server --release --target x86_64-unknown-linux-gnu
-    docker build -f docker/server.dockerfile -t $REGISTRY/imaginarium/server:latest ./target/release
+    docker build -f docker/server.dockerfile -t $REGISTRY/imaginarium/server:latest ./target/x86_64-unknown-linux-gnu/release
     docker push $REGISTRY/imaginarium/server:latest
