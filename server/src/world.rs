@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use std::sync::Arc;
+use std::time::Instant;
 
 use tokio::fs::{File, OpenOptions};
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
@@ -54,6 +55,12 @@ impl World {
     pub async fn update_coordinate(&self, id: PlayerId, coordinate: Coordinate) {
         if let Some(data) = self.inner.lock().await.get_mut(&id) {
             data.position = coordinate
+        }
+    }
+
+    pub async fn update_last_ping_response(&self, id: PlayerId) {
+        if let Some(data) = self.inner.lock().await.get_mut(&id) {
+            data.last_ping = Instant::now()
         }
     }
 

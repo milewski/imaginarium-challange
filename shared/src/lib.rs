@@ -1,4 +1,5 @@
 use std::hash::{Hash, Hasher};
+use std::time::Instant;
 use bevy::math::Vec3;
 use bevy::prelude::Component;
 use bincode::config::standard;
@@ -50,6 +51,7 @@ impl PlayerId {
 pub struct PlayerData {
     pub id: PlayerId,
     pub balance: u32,
+    pub last_ping: Instant,
     pub position: Coordinate,
 }
 

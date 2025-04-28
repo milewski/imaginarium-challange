@@ -33,7 +33,7 @@ impl Manager {
         }
     }
 
-    async fn broadcast_to(&self, id: PlayerId, message: SystemMessages) {
+    pub async fn broadcast_to(&self, id: PlayerId, message: SystemMessages) {
         if let Some(sender) = self.inner.lock().await.get(&id) {
             let _ = sender.send(message);
         }

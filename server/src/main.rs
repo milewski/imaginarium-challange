@@ -1,6 +1,8 @@
 use std::error::Error;
+use std::time::{Duration, Instant};
 
 use futures_util::{SinkExt, StreamExt};
+use futures_util::stream::FuturesUnordered;
 use futures_util::task::SpawnExt;
 use tokio::net::TcpListener;
 use tokio::sync::mpsc;
@@ -34,6 +36,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let world_clone = world.clone();
 
     tokio::spawn(build_server(manager.clone(), world.clone()));
+    tokio::spawn(clean_inactive_players_task(manager.clone(), world.clone()));
 
     println!("websocket server starting at {}", "http://0.0.0.0:9001");
 
@@ -51,6 +54,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         let player_data = PlayerData {
             id: player_id,
             balance: 0,
+            last_ping: Instant::now(),
             position: Coordinate::default(),
         };
 
@@ -102,7 +106,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 async fn handle_player_communication(scope: ScopedManager, world: World, message: SystemMessages) {
     match message {
         SystemMessages::Ping => scope.broadcast_to_self(SystemMessages::Pong).await,
-        SystemMessages::Pong => {}
+        SystemMessages::Pong => world.update_last_ping_response(scope.id).await,
         SystemMessages::Connected { .. } => {}
         SystemMessages::Welcome { .. } => {}
         SystemMessages::PlayerPosition { coordinate } => {
@@ -163,5 +167,33 @@ async fn on_player_connect(scoped: ScopedManager, world: World) {
         }
 
         tokio::join!(player, enemy);
+    }
+}
+
+async fn clean_inactive_players_task(manager: Manager, world: World) {
+    loop {
+        tokio::time::sleep(Duration::from_secs(10)).await;
+
+        let players = world.players().await;
+        let mut futures = FuturesUnordered::new();
+
+        for player in players {
+            let manager = manager.clone();
+            let world = world.clone();
+
+            futures.push(async move {
+                manager.broadcast_to(player.id, SystemMessages::Ping).await;
+
+                if player.last_ping.elapsed() > Duration::from_secs(60) {
+                    world.remove(player.id).await;
+                    manager.broadcast(SystemMessages::EnemyDisconnected { id: player.id }).await;
+                    println!("removed inactive player: {}", player.id);
+                }
+            });
+        }
+
+        while futures.next().await.is_some() {
+            // each task is awaited here
+        }
     }
 }

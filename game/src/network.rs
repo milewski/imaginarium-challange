@@ -1,8 +1,9 @@
+use std::env;
+
 use bevy::prelude::*;
 use bincode::config::standard;
 use futures_util::{SinkExt, StreamExt};
 use gloo_timers::future::TimeoutFuture;
-use std::env;
 use tokio::sync::mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender};
 use tokio_tungstenite_wasm::Message;
 
@@ -28,7 +29,7 @@ impl Plugin for NetworkPlugin {
         let (upstream_sender, mut upstream_receiver) = unbounded_channel::<SystemMessages>();
 
         app.add_systems(Update, debug_websocket_messages_system);
-        app.add_systems(Update, send_ping_system);
+        app.add_systems(Update, respond_to_ping_system);
 
         // Server to Client
         app.add_event::<WebSocketMessageReceived>();
@@ -71,11 +72,11 @@ impl Plugin for NetworkPlugin {
     }
 }
 
-/// Send a ping to the server whenever the pressing the letter P (for debugging purpose)
-/// Server will reply with a pong
-fn send_ping_system(keyboard: Res<ButtonInput<KeyCode>>, mut event: EventWriter<SendWebSocketMessage>) {
-    if keyboard.just_pressed(KeyCode::KeyP) {
-        event.send(SendWebSocketMessage(SystemMessages::Ping));
+fn respond_to_ping_system(mut events: EventReader<WebSocketMessageReceived>, mut writer: EventWriter<SendWebSocketMessage>) {
+    for event in events.read() {
+        if let SystemMessages::Ping = event.0 {
+            writer.send(SendWebSocketMessage(SystemMessages::Pong));
+        }
     }
 }
 
