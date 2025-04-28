@@ -42,8 +42,6 @@ start-game:
     cd game/frontend && yarn && yarn dev
 
 build-server:
-    cargo build -p server --release
+    cargo build -p server --release --target x86_64-unknown-linux-gnu
     docker build -f docker/server.dockerfile -t $REGISTRY/imaginarium/server:latest ./target/release
     docker push $REGISTRY/imaginarium/server:latest
-
-    ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIBRjcyXLvY4Q2uys3E4yNnZUYfYtKJMojWhMlMWP7TU4 milewski@Rafaels-iMac.local

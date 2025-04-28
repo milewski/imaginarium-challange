@@ -13,7 +13,6 @@ use world::World;
 use crate::api::build_server;
 use crate::comfyui::ComfyUI;
 
-mod vector;
 mod comfyui;
 mod api;
 mod world;
