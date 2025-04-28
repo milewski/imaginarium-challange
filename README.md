@@ -10,7 +10,7 @@ https://github.com/user-attachments/assets/7890823f-c500-458e-9061-b4435e316555
 
 This is the main repository for my submission to [Alibaba Cloud Web Game Challenge](https://dev.to/challenges/alibaba).
 
-The project is organized into three folders:
+The project is organized into four folders:
 
 - **[Game](./game)**: The core game, built with Bevy and compiled to WebAssembly (WASM) to run in the browser.
 - **[Frontend](./game/frontend)**: A thin Vue.js wrapper that handles loading the WASM file, managing modals, audio tokens, and browser-to-game communication.
