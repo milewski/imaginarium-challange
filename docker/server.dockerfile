@@ -10,4 +10,6 @@ RUN mkdir -p --mode=0755 /usr/share/keyrings && \
 
 COPY ./server /srv/server
 
+WORKDIR /srv
+
 CMD ["/srv/server"]
