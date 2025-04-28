@@ -65,9 +65,10 @@ resource "alicloud_cdn_domain_new" "cdn" {
   cdn_type = "web"
   sources {
     type = "oss"
-    content = alicloud_oss_bucket.bucket-website.bucket
+    content = "${alicloud_oss_bucket.bucket-website.id}.${alicloud_oss_bucket.bucket-website.extranet_endpoint}"
     priority = 20
-    port = 443
+    port = 80
+    weight = 10
   }
 }
 

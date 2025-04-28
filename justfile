@@ -37,11 +37,15 @@ deploy-wasm:
 start-server:
     cargo run -p server --release
 
-start-game:
-    cd game && wasm-pack build --release --target web --no-opt --no-pack --out-dir frontend/wasm
-    cd game/frontend && yarn && yarn dev
-
 build-server:
     cargo build -p server --release --target x86_64-unknown-linux-gnu
     docker build -f docker/server.dockerfile -t $REGISTRY/imaginarium/server:latest ./target/x86_64-unknown-linux-gnu/release
     docker push $REGISTRY/imaginarium/server:latest
+
+start-game:
+    cd game && wasm-pack build --release --target web --no-opt --no-pack --out-dir frontend/wasm
+    cd game/frontend && yarn && yarn dev
+
+build-game:
+    cd game && wasm-pack build --release --target web --no-pack --out-dir frontend/wasm
+    cd game/frontend && yarn && yarn build

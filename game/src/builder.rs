@@ -10,6 +10,11 @@ use crate::sound_effects::AudioCache;
 
 pub struct BuilderPlugin;
 
+#[derive(Component)]
+struct MonumentShake {
+    shake_timer: f32,
+}
+
 impl Plugin for BuilderPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(Update, build_monument_system);
@@ -123,29 +128,29 @@ fn spawn_monument(
             ..default()
         },
         monument,
+        MonumentShake { shake_timer: 0.0 },
     ));
 
 }
 
 fn animate_monument_system(
     time: Res<Time>,
-    mut query: Query<&mut Transform, With<Monument>>,
-    mut shake_timer: Local<f32>,
+    mut query: Query<(&mut Transform, &mut MonumentShake), With<Monument>>,
 ) {
     let gravity = 30.0;
-    let shake_duration = 0.5;
+    let shake_duration = 1.0;
     let shake_magnitude = 0.2;
 
-    for mut transform in query.iter_mut() {
-        if *shake_timer > 0.0 {
-            *shake_timer -= time.delta_secs();
+    for (mut transform, mut shake) in query.iter_mut() {
+        if shake.shake_timer > 0.0 {
+            shake.shake_timer -= time.delta_secs();
 
-            let progress = 1.0 - (*shake_timer / shake_duration);
-            let shake = (progress * std::f32::consts::PI * 6.0).sin() * shake_magnitude * (1.0 - progress);
+            let progress = 1.0 - (shake.shake_timer / shake_duration);
+            let shake_amount = (progress * std::f32::consts::PI * 6.0).sin() * shake_magnitude * (1.0 - progress);
 
-            transform.translation.y = shake.max(0.0);
+            transform.translation.y = shake_amount.max(0.0);
 
-            if *shake_timer <= 0.0 {
+            if shake.shake_timer <= 0.0 {
                 transform.translation.y = 0.0;
             }
         } else if transform.translation.y > 0.0 {
@@ -153,7 +158,7 @@ fn animate_monument_system(
 
             if transform.translation.y <= 0.0 {
                 transform.translation.y = 0.0;
-                *shake_timer = shake_duration;
+                shake.shake_timer = shake_duration;
             }
         }
     }
