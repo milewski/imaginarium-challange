@@ -14,7 +14,7 @@ provider "alicloud" {
 }
 
 variable "instance_type" {
-  default = "ecs.c8i.large"
+  default = "ecs.t5-lc1m1.small"
 }
 
 variable "region" {
@@ -31,12 +31,12 @@ resource "alicloud_key_pair" "key" {
   public_key = file("./keys/admin.pub")
 }
 
-resource "alicloud_instance" "instance" {
+resource "alicloud_instance" "instance-t5" {
   availability_zone = data.alicloud_zones.default.zones.0.id
   security_groups = alicloud_security_group.default.*.id
   key_name = alicloud_key_pair.key.key_name
   instance_type = var.instance_type
-  system_disk_category = "cloud_essd"
+  system_disk_category = "cloud_efficiency"
   system_disk_size = 20
   system_disk_name = "imaginarium-disk"
   image_id = "ubuntu_24_04_x64_20G_alibase_20250317.vhd"
@@ -73,5 +73,5 @@ resource "alicloud_cdn_domain_new" "cdn" {
 }
 
 output "ip_address" {
-  value = alicloud_instance.instance.public_ip
+  value = alicloud_instance.instance-t5.public_ip
 }
